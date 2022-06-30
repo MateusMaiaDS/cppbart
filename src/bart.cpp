@@ -22,7 +22,6 @@ using namespace Rcpp;
 
 
 
-//[[Rcpp::export]]
 Tree grow(Tree curr_tree,
           Eigen::MatrixXd x,
           int n_min_size){
@@ -49,7 +48,6 @@ Tree grow(Tree curr_tree,
   // Defining new tree
   Tree new_tree = curr_tree;
 
-
   while(bad_trees){
 
     // Sampling one of the nodes (this function will sample the node index from
@@ -72,13 +70,13 @@ Tree grow(Tree curr_tree,
       }
     }
 
-    if(new_right_index.size()>=n_min_size & new_left_index.size()>=n_min_size){
+    if(new_right_index.size()>=n_min_size && new_left_index.size()>=n_min_size){
 
       // Getting the new nodes
-      node new_node_left(n_nodes+1,new_left_index,-1,-1,t_nodes[g_node].depth+1,
+      node new_node_left(n_nodes,new_left_index,-1,-1,t_nodes[g_node].depth+1,
                  g_var,g_rule,t_nodes[g_node].mu);
 
-      node new_node_right(n_nodes+2,new_right_index,-1,-1,t_nodes[g_node].depth+1,
+      node new_node_right(n_nodes+1,new_right_index,-1,-1,t_nodes[g_node].depth+1,
                          g_var,g_rule,t_nodes[g_node].mu);
 
       // Adding the new nodes
@@ -86,8 +84,8 @@ Tree grow(Tree curr_tree,
       new_tree.list_node.push_back(new_node_right);
 
       // Transforming the growned node into non-terminal
-      new_tree.list_node[g_node].left = n_nodes+1;
-      new_tree.list_node[g_node].right = n_nodes+2;
+      new_tree.list_node[t_nodes[g_node].index].left = n_nodes;
+      new_tree.list_node[t_nodes[g_node].index].right = n_nodes+1;
 
 
       // Success to create a good tree;
@@ -108,11 +106,52 @@ Tree grow(Tree curr_tree,
 
 
   }
+  cout << "#========#" << endl;
 
   return new_tree;
 
 
 }
+
+// Prune a tree
+Tree prune(Tree curr_tree){
+
+  int n_nodes = curr_tree.list_node.size();
+
+  // Can't prune a root
+  if(curr_tree.list_node.size()==1){
+    return curr_tree;
+  }
+
+  // Getting the parents of terminal nodes
+  vector<node> parent_left_right;
+  for(int i=0;i<n_nodes;i++){
+    if(curr_tree.list_node[i].isTerminal()==0){
+      if(curr_tree.list_node[curr_tree.list_node[i].left].isTerminal()==1 && curr_tree.list_node[curr_tree.list_node[i].right].isTerminal()==1){
+            parent_left_right.push_back(curr_tree.list_node[i]); // Adding the parent
+        cout<< " The parent node is given by "<<i<<endl;
+      }
+    }
+  }
+
+
+  // Transforming back the parent and left nodes
+  int n_parent = parent_left_right.size();
+  int p_node = sample_int(n_parent);
+
+  // Returning to be a terminal node
+  int left_index = curr_tree.list_node[parent_left_right[p_node].index].left;
+  int right_index = curr_tree.list_node[parent_left_right[p_node].index].right;
+  curr_tree.list_node[parent_left_right[p_node].index].left=-1;
+  curr_tree.list_node[parent_left_right[p_node].index].right=-1;
+
+  // Removing the two tree elements ( The plust 1 inn the right because erase([,)]))
+  curr_tree.list_node.erase(curr_tree.list_node.begin()+left_index,curr_tree.list_node.begin()+right_index+1);
+
+  return curr_tree;
+}
+
+
 
 
 //[[Rcpp::export]]
@@ -126,10 +165,17 @@ int initialize_test(MatrixXd x){
   Tree tree1(10);
   node node1(1,vec,1,1,1,1,0.1,0.1);
   //node1.DisplayNode();
-  Tree new_tree = grow(tree1,x,3);
-  //new_tree.DisplayNodes();
-  Tree new_tree_two = grow(new_tree,x,18);
-  new_tree_two.DisplayNodes();
+  Tree new_tree = grow(tree1,x,2);
+  // new_tree.DisplayNodes();
+  Tree new_tree_two = grow(new_tree,x,2);
+  // new_tree_two.DisplayNodes();
+  Tree new_three_tree = grow(new_tree_two,x,2);
+  new_three_tree.DisplayNodes();
+
+  // vector<int> p_index = new_tree_two.getParentTerminals();
+
+  Tree prune_tree = prune(new_three_tree);
+  prune_tree.DisplayNodes();
 
   return 0;
 

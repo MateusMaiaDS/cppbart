@@ -19,6 +19,7 @@ public:
   vector<int> obs; // Storing observations index that belong to that node
   int left; // Index of the left node
   int right; // Index of the right node
+  int parent; // Index of the parent
   int depth; //  Depth of the node
 
   int var; // Variable which the node was split
@@ -47,13 +48,13 @@ public:
   void DisplayNode(){
     cout << "Node Number: " << index << endl;
     cout << "Decision Rule -> Var:  " << var << " & Rule: " << var_split << endl;
+    cout << "Left <-  " << left << " & Right -> " << right << endl;
+
   }
 
   bool isTerminal(){
-    return ((left == -1) & (right == -1) );
+    return ((left == -1) && (right == -1) );
   }
-
-
 
 };
 
@@ -68,7 +69,7 @@ class Tree{
     // Getting the vector of nodes
     Tree(int n_obs){
       // Creating a root node
-      list_node.push_back(node(1,
+      list_node.push_back(node(0,
                                seq_along(n_obs),
                                -1, // left
                                -1, // right
@@ -86,6 +87,7 @@ class Tree{
       for(int i = 0; i<list_node.size(); i++){
         list_node[i].DisplayNode();
       }
+      cout << "# ====== #" << endl;
     }
 
     // Getting terminal nodes
@@ -102,6 +104,21 @@ class Tree{
       return terminalNodes;
     }
 
+    // Getting terminal nodes
+    vector<node> getNonTerminals(){
+
+      // Defining terminal nodes
+      vector<node> NonTerminalNodes;
+
+      for(int i = 0; i<list_node.size(); i++){
+        if(list_node[i].isTerminal()==0){
+          NonTerminalNodes.push_back(list_node[i]); // Adding the terminals to the list
+        }
+      }
+      return NonTerminalNodes;
+    }
+
+
     // Getting the number of n_terminals
     int n_terminal(){
 
@@ -115,6 +132,29 @@ class Tree{
 
       return terminal_sum;
     }
+
+    // // Checking if the selected node is parent of terminal
+    // vector<int> getParentTerminals(){
+    //
+    //   // Getting the parents index and number of non terminal index;
+    //   int n_nodes = list_node.size();
+    //   vector<int> parents_index;
+    //
+    //   if(n_nodes == 0 ){
+    //     return parents_index;
+    //   }
+    //
+    //   // Iterating over the trees
+    //   for(int i=0;i<n_nodes;i++){
+    //     if(list_node[i].isTerminal()==0){
+    //       if(list_node[list_node[i].left].isTerminal()==1 && list_node[list_node[i].right].isTerminal()==1){
+    //         parents_index.push_back(i); // Adding the parent
+    //       }
+    //     }
+    //   }
+    //   return parents_index;
+    // }
+
 };
 
 RCPP_EXPOSED_CLASS(node)
