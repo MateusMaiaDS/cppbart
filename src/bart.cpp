@@ -105,7 +105,6 @@ Tree grow(Tree curr_tree,
 
 
   }
-  cout << "#========#" << endl;
 
   return curr_tree;
 
@@ -265,7 +264,7 @@ Tree change(Tree curr_tree,
 //   return curr_tree;
 // }
 
-double node_loglikelihood(VectorXd residuals,
+double node_loglikelihood(vector<double> residuals,
                           node current_node,
                           double tau_mu,
                           double tau) {
@@ -275,21 +274,21 @@ double node_loglikelihood(VectorXd residuals,
   double sum_sq_r = 0 , sum_r = 0;
 
   for(int i = 0;i<n_size;i++){
-    sum_sq_r+=residuals.coeff(i)*residuals.coeff(i);
-    sum_r+=residuals.coeff(i);
+    sum_sq_r+=residuals[i]*residuals[i];
+    sum_r+=residuals[i];
 
   }
 
   return -0.5*tau*sum_sq_r-0.5*tau*tau*sum_r*sum_r/(tau*n_size+tau_mu)-0.5*log(tau*n_size+tau_mu);
 }
 
-double tree_loglikelihood(VectorXd residuals,
-                          Tree current_tree,
+double tree_loglikelihood(vector<double> residuals,
+                          Tree curr_tree,
                           double tau_mu,
                           double tau) {
 
   // Declaring important quantities
-  vector<node> terminal_nodes = current_tree.getTerminals();
+  vector<node> terminal_nodes = curr_tree.getTerminals();
   int number_nodes = terminal_nodes.size();
   double loglike_sum = 0;
 
@@ -302,8 +301,113 @@ double tree_loglikelihood(VectorXd residuals,
   return loglike_sum;
 }
 
+// Updating the \mu
+Tree update_mu(vector<double>residuals,
+               Tree curr_tree,
+               double tau,
+               double tau_mu){
+
+  // Declaring important quantities
+  vector<node> terminal_nodes = curr_tree.getTerminals();
+  int number_nodes = terminal_nodes.size();
+  double sum_residuals;
+
+  // Iterating over terminal nodes
+  for(int i = 0;i<number_nodes;i++){
+    sum_residuals = 0;
+    for(int j = 0;j<terminal_nodes[i].obs.size();j++){
+      sum_residuals+=residuals[terminal_nodes[i].obs[j]];
+    }
+    curr_tree.list_node[terminal_nodes[i].index].mu = R::rnorm( ((tau)/(terminal_nodes[i].obs.size()*tau+tau_mu))*sum_residuals,sqrt(1/((terminal_nodes[i].obs.size()*tau+tau_mu))) );
+  }
+
+  return curr_tree;
+}
+
+double update_tau(vector<double> y,
+                  vector<double> y_hat,
+                  double a_tau,
+                  double d_tau){
+
+  int n = y.size();
+  double sum_sq_res=0;
+  for(int i=0;i<n;i++){
+    sum_sq_res+=(y[i]-y_hat[i])*(y[i]-y_hat[i]);
+  }
+  return R::rgamma((0.5*n+a_tau),1/(0.5*sum_sq_res+d_tau));
+}
+
+vector<double> get_prediction_tree(Tree curr_tree,
+                             MatrixXd x,
+                             bool is_train){
+
+  // Creating the prediction vector
+  int n(x.rows());
+  vector<double> prediction(n);
+
+  // Getting terminal nodes
+  vector<node> terminal_nodes = curr_tree.getTerminals();
+  int n_terminals = terminal_nodes.size();
+
+  // If x is the training data
+  if(is_train==1){
+      cout << "ERROR" << endl;
+      // Iterating to get the predictions for a training test
+      for(int i = 0;i<n_terminals;i++){
+        for(int j = 0; j<terminal_nodes[i].obs.size();j++){
+          prediction[terminal_nodes[i].obs[j]] = terminal_nodes[i].mu;
+        }
+      }
+  }
+
+  else {
+
+    curr_tree.list_node[0].obs = seq_along(n);
+    vector<int> curr_obs;
+    vector<int> new_left_index, new_right_index;
+
+    for(int i = 0; i<curr_tree.list_node.size();i++){
+      curr_obs = curr_tree.list_node[i].obs;
+
+      // If the node is terminal update the new predictions with the mu values
+      //from the terminal node;
+
+      if(curr_tree.list_node[i].isTerminal()==1){
+        for(int j=0;j<curr_obs.size();j++){
+          prediction[curr_obs[j]] = curr_tree.list_node[i].mu;
+        }
+      } else {
+
+        for(int j=0; j<curr_obs.size();j++){
+
+          if(x(j,curr_tree.list_node[curr_tree.list_node[i].left].var)<=curr_tree.list_node[curr_tree.list_node[i].left].var_split){
+              new_left_index.push_back(curr_obs[j]);
+          } else {
+              new_right_index.push_back(curr_obs[j]);
+          }
+        }
+
+        // Storing the new ones
+        curr_tree.list_node[curr_tree.list_node[i].left].obs=new_left_index;
+        curr_tree.list_node[curr_tree.list_node[i].right].obs=new_right_index;
+
+        // Clearning the aux vectors afterwards
+        new_left_index.clear();
+        new_right_index.clear();
+
+      }
+
+
+    }
+
+
+  }
+
+  return prediction;
+}
+
 //[[Rcpp::export]]
-int initialize_test(MatrixXd x,VectorXd residuals,
+int initialize_test(MatrixXd x,MatrixXd x_new,vector<double> residuals,
                     double tau, double tau_mu){
 
   int n_obs(x.rows());
@@ -323,7 +427,14 @@ int initialize_test(MatrixXd x,VectorXd residuals,
   // change_tree_two.DisplayNodes();
   // Tree new_three_tree = grow(new_tree_two,x,2);
   // new_three_tree.DisplayNodes();
-  cout << "Loglikelihood value: " <<tree_loglikelihood(residuals,change_tree_two,tau,tau_mu)<<endl;
+  Tree update_mu_tree = update_mu(residuals,change_tree_two,tau,tau_mu);
+  vector<double> pred_vec  = get_prediction_tree(update_mu_tree,x_new,false);
+  // get_prediction_tree(change_tree_two,x,true);
+  cout << "Pred x: ";
+  for(int i = 0; i<pred_vec.size();i++){
+    cout  << pred_vec[i]<< " " ;
+  }
+
   // vector<int> p_index = new_tree_two.getParentTerminals();
 
   // Tree prune_tree = prune(new_three_tree);
