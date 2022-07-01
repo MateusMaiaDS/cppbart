@@ -133,28 +133,6 @@ class Tree{
       return terminal_sum;
     }
 
-    // // Checking if the selected node is parent of terminal
-    // vector<int> getParentTerminals(){
-    //
-    //   // Getting the parents index and number of non terminal index;
-    //   int n_nodes = list_node.size();
-    //   vector<int> parents_index;
-    //
-    //   if(n_nodes == 0 ){
-    //     return parents_index;
-    //   }
-    //
-    //   // Iterating over the trees
-    //   for(int i=0;i<n_nodes;i++){
-    //     if(list_node[i].isTerminal()==0){
-    //       if(list_node[list_node[i].left].isTerminal()==1 && list_node[list_node[i].right].isTerminal()==1){
-    //         parents_index.push_back(i); // Adding the parent
-    //       }
-    //     }
-    //   }
-    //   return parents_index;
-    // }
-
 };
 
 RCPP_EXPOSED_CLASS(node)
