@@ -140,6 +140,20 @@ class Tree{
       return terminal_sum;
     }
 
+    // Getting the number of non-terminals
+    int n_internal(){
+
+      // Defining the sum value
+      int internal_sum = 0;
+      for(int i = 0; i<list_node.size(); i++){
+        if(list_node[i].isTerminal()==0){
+          internal_sum++;
+        }
+      }
+
+      return internal_sum;
+    }
+
 };
 
 RCPP_EXPOSED_CLASS(node)

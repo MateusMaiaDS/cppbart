@@ -247,11 +247,64 @@ Tree change(Tree curr_tree,
 
   return curr_tree;
 
+};
+
+// // Get the verbs
+// Tree swap(Tree curr_tree,
+//            MatrixXd x,
+//            int n_min_size){
+//
+//   // Testing if there are at least enough terminal nodes
+//   int n_int = curr_tree.n_internal();
+//
+//   // Returning if there are not enough internal nodes
+//   if(n_int<2){
+//     return curr_tree;
+//   }
+//
+//   return curr_tree;
+// }
+
+double node_loglikelihood(VectorXd residuals,
+                          node current_node,
+                          double tau_mu,
+                          double tau) {
+
+  // Decarling the quantities
+  int n_size = current_node.obs.size();
+  double sum_sq_r = 0 , sum_r = 0;
+
+  for(int i = 0;i<n_size;i++){
+    sum_sq_r+=residuals.coeff(i)*residuals.coeff(i);
+    sum_r+=residuals.coeff(i);
+
+  }
+
+  return -0.5*tau*sum_sq_r-0.5*tau*tau*sum_r*sum_r/(tau*n_size+tau_mu)-0.5*log(tau*n_size+tau_mu);
 }
 
+double tree_loglikelihood(VectorXd residuals,
+                          Tree current_tree,
+                          double tau_mu,
+                          double tau) {
+
+  // Declaring important quantities
+  vector<node> terminal_nodes = current_tree.getTerminals();
+  int number_nodes = terminal_nodes.size();
+  double loglike_sum = 0;
+
+
+  for(int i = 0; i<number_nodes; i++) {
+      loglike_sum+=node_loglikelihood(residuals,
+                                      terminal_nodes[i],tau,tau_mu);
+  }
+
+  return loglike_sum;
+}
 
 //[[Rcpp::export]]
-int initialize_test(MatrixXd x){
+int initialize_test(MatrixXd x,VectorXd residuals,
+                    double tau, double tau_mu){
 
   int n_obs(x.rows());
   vector<int> vec;
@@ -265,12 +318,12 @@ int initialize_test(MatrixXd x){
   Tree new_tree = grow(tree1,x,2);
   // new_tree.DisplayNodes();
   Tree new_tree_two = grow(new_tree,x,2);
-  new_tree_two.DisplayNodes();
+  // new_tree_two.DisplayNodes();
   Tree change_tree_two = change(new_tree_two,x,2);
-  change_tree_two.DisplayNodes();
+  // change_tree_two.DisplayNodes();
   // Tree new_three_tree = grow(new_tree_two,x,2);
   // new_three_tree.DisplayNodes();
-
+  cout << "Loglikelihood value: " <<tree_loglikelihood(residuals,change_tree_two,tau,tau_mu)<<endl;
   // vector<int> p_index = new_tree_two.getParentTerminals();
 
   // Tree prune_tree = prune(new_three_tree);
