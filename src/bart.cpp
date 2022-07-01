@@ -351,7 +351,6 @@ vector<double> get_prediction_tree(Tree curr_tree,
 
   // If x is the training data
   if(is_train==1){
-      cout << "ERROR" << endl;
       // Iterating to get the predictions for a training test
       for(int i = 0;i<n_terminals;i++){
         for(int j = 0; j<terminal_nodes[i].obs.size();j++){
@@ -397,17 +396,97 @@ vector<double> get_prediction_tree(Tree curr_tree,
 
       }
 
-
     }
-
 
   }
 
   return prediction;
 }
 
+double tree_log_prior(Tree curr_tree,
+                  double alpha,
+                  double beta) {
+
+  double log_tree_p = 0;
+
+  for(int i=0;i<curr_tree.list_node.size();i++){
+    if(curr_tree.list_node[i].isTerminal()==1){
+      log_tree_p += log(1-pow(alpha*(1+curr_tree.list_node[i].depth),-beta));
+    } else {
+      log_tree_p += log(alpha)-beta*log(1+curr_tree.list_node[i].depth);
+    }
+  }
+
+  return log_tree_p;
+}
+
+// //[[Rcpp::export]]
+MatrixXd bart(MatrixXd x,
+          vector<double> y,
+          int n_tree,
+          int n_mcmc,
+          int n_burn,
+          int n_min_size,
+          double tau, double mu,
+          double a_tau, double d_tau, double tau_mu,
+          double alpha, double beta){
+
+  // Getting the number of observations
+  int n(x.rows());
+
+  // Creating the variables
+  int post_size = (n_mcmc-n_burn);
+  MatrixXd y_hat_post;
+
+  // Creating a vector of multiple trees
+  vector<Tree> current_trees;
+  MatrixXd y_hat;
+  Tree new_tree(n);
+
+  // Creating a matrix of zeros of y_hat
+  y_hat.Zero(n_tree,n);
+
+  // Creating the partial residuals and partial predictions
+  vector<double> partial_pred(n),partial_residuals(n);
+
+  // Initializing the "n_trees"
+  for(int i=0; i<n_tree;i++){
+    current_trees.push_back(Tree(n));
+
+  }
+
+  // Initial values for partial pred and residuals
+  partial_residuals = y;
+
+  // Creating loglikelhood objects
+  double log_like_old,log_like_new;
+
+
+  // Iterating over all MCMC samples
+  for(int i=0;i<n_mcmc;i++)
+
+
+
+      // Iterating over the trees
+      for(int t = 0; t<n_tree;t++){
+
+      // Create a function to sample a verb
+      new_tree
+
+      log_like_old = tree_loglikelihood(partial_residuals,
+                                        current_trees[t],
+                                        tau_mu,
+                                        tau) + tree_log_prior(current_trees[t],alpha,beta);
+
+
+      }
+
+  return y_hat_post;
+}
+
 //[[Rcpp::export]]
-int initialize_test(MatrixXd x,MatrixXd x_new,vector<double> residuals,
+int initialize_test(MatrixXd x,MatrixXd x_new,
+                    vector<double> residuals,
                     double tau, double tau_mu){
 
   int n_obs(x.rows());
@@ -435,6 +514,7 @@ int initialize_test(MatrixXd x,MatrixXd x_new,vector<double> residuals,
     cout  << pred_vec[i]<< " " ;
   }
 
+  // cout << "Tree prior" << tree_log_prior(new_tree_two,0.95,2) << endl;
   // vector<int> p_index = new_tree_two.getParentTerminals();
 
   // Tree prune_tree = prune(new_three_tree);
