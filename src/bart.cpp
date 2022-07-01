@@ -253,12 +253,13 @@ Tree change(Tree curr_tree,
 //[[Rcpp::export]]
 int initialize_test(MatrixXd x){
 
+  int n_obs(x.rows());
   vector<int> vec;
   for(int i = 0; i<3;i++){
     vec[i] = i;
   }
 
-  Tree tree1(10);
+  Tree tree1(n_obs);
   node node1(1,vec,1,1,1,1,0.1,0.1);
   //node1.DisplayNode();
   Tree new_tree = grow(tree1,x,2);

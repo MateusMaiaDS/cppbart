@@ -46,10 +46,17 @@ public:
   }
 
   void DisplayNode(){
+
     cout << "Node Number: " << index << endl;
     cout << "Decision Rule -> Var:  " << var << " & Rule: " << var_split << endl;
     cout << "Left <-  " << left << " & Right -> " << right << endl;
-
+    if(true){
+      cout << "Observations: " ;
+      for(int i = 0; i<obs.size(); i++){
+        cout << obs[i] << " ";
+      }
+      cout << endl;
+    }
   }
 
   bool isTerminal(){
