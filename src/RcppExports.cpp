@@ -11,33 +11,24 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// seq_along
-vector<int> seq_along(int n);
-RcppExport SEXP _cppbart_seq_along(SEXP nSEXP) {
+// initialize_test
+int initialize_test(MatrixXd x, MatrixXd x_new, VectorXd residuals, double tau, double tau_mu);
+RcppExport SEXP _cppbart_initialize_test(SEXP xSEXP, SEXP x_newSEXP, SEXP residualsSEXP, SEXP tauSEXP, SEXP tau_muSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< int >::type n(nSEXP);
-    rcpp_result_gen = Rcpp::wrap(seq_along(n));
-    return rcpp_result_gen;
-END_RCPP
-}
-// grow
-int grow(node curr_tree, Eigen::MatrixXd x);
-RcppExport SEXP _cppbart_grow(SEXP curr_treeSEXP, SEXP xSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< node >::type curr_tree(curr_treeSEXP);
-    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type x(xSEXP);
-    rcpp_result_gen = Rcpp::wrap(grow(curr_tree, x));
+    Rcpp::traits::input_parameter< MatrixXd >::type x(xSEXP);
+    Rcpp::traits::input_parameter< MatrixXd >::type x_new(x_newSEXP);
+    Rcpp::traits::input_parameter< VectorXd >::type residuals(residualsSEXP);
+    Rcpp::traits::input_parameter< double >::type tau(tauSEXP);
+    Rcpp::traits::input_parameter< double >::type tau_mu(tau_muSEXP);
+    rcpp_result_gen = Rcpp::wrap(initialize_test(x, x_new, residuals, tau, tau_mu));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_cppbart_seq_along", (DL_FUNC) &_cppbart_seq_along, 1},
-    {"_cppbart_grow", (DL_FUNC) &_cppbart_grow, 2},
+    {"_cppbart_initialize_test", (DL_FUNC) &_cppbart_initialize_test, 5},
     {NULL, NULL, 0}
 };
 

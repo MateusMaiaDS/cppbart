@@ -154,6 +154,18 @@ class Tree{
       return internal_sum;
     }
 
+    // Get the number of NOG (branches parents of terminal nodes)
+    int n_nog(){
+        int nog_counter = 0;
+          for(int i=0;i<list_node.size();i++){
+            if(list_node[i].isTerminal()==0){
+              if(list_node[list_node[i].left].isTerminal()==1 && list_node[list_node[i].right].isTerminal()==1){
+                nog_counter++;
+              }
+            }
+        }
+        return nog_counter;
+      }
 };
 
 RCPP_EXPOSED_CLASS(node)

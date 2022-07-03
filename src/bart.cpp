@@ -18,10 +18,8 @@ using Eigen::LLT;
 using Eigen::Lower;
 using Eigen::Upper;
 
-using namespace Rcpp;
 
-
-
+// [[Rcpp::depends(RcppEigen)]]
 Tree grow(Tree curr_tree,
           Eigen::MatrixXd x,
           int n_min_size){
@@ -112,6 +110,7 @@ Tree grow(Tree curr_tree,
 }
 
 // Prune a tree
+// [[Rcpp::depends(RcppEigen)]]
 Tree prune(Tree curr_tree){
 
   int n_nodes = curr_tree.list_node.size();
@@ -149,6 +148,7 @@ Tree prune(Tree curr_tree){
 }
 
 // Change a tree
+// [[Rcpp::depends(RcppEigen)]]
 Tree change(Tree curr_tree,
             MatrixXd x,
             int n_min_size){
@@ -172,7 +172,7 @@ Tree change(Tree curr_tree,
     return curr_tree;
   }
 
-  // Getting the parents of terminal nodes
+  // Getting the parents of terminal nodes (NOG)
   vector<node> parent_left_right;
   for(int i=0;i<n_nodes;i++){
     if(curr_tree.list_node[i].isTerminal()==0){
@@ -264,28 +264,31 @@ Tree change(Tree curr_tree,
 //   return curr_tree;
 // }
 
-double node_loglikelihood(vector<double> residuals,
+// [[Rcpp::depends(RcppEigen)]]
+double node_loglikelihood(VectorXd residuals,
                           node current_node,
-                          double tau_mu,
-                          double tau) {
+                          double tau,
+                          double tau_mu) {
 
   // Decarling the quantities
   int n_size = current_node.obs.size();
   double sum_sq_r = 0 , sum_r = 0;
 
   for(int i = 0;i<n_size;i++){
-    sum_sq_r+=residuals[i]*residuals[i];
-    sum_r+=residuals[i];
+    sum_sq_r+=residuals.coeff(i)*residuals.coeff(i);
+    sum_r+=residuals.coeff(i);
 
   }
 
   return -0.5*tau*sum_sq_r-0.5*tau*tau*sum_r*sum_r/(tau*n_size+tau_mu)-0.5*log(tau*n_size+tau_mu);
 }
 
-double tree_loglikelihood(vector<double> residuals,
+// [[Rcpp::depends(RcppEigen)]]
+double tree_loglikelihood(VectorXd residuals,
                           Tree curr_tree,
-                          double tau_mu,
-                          double tau) {
+                          double tau,
+                          double tau_mu
+) {
 
   // Declaring important quantities
   vector<node> terminal_nodes = curr_tree.getTerminals();
@@ -302,7 +305,8 @@ double tree_loglikelihood(vector<double> residuals,
 }
 
 // Updating the \mu
-Tree update_mu(vector<double>residuals,
+// [[Rcpp::depends(RcppEigen)]]
+Tree update_mu(VectorXd residuals,
                Tree curr_tree,
                double tau,
                double tau_mu){
@@ -316,7 +320,7 @@ Tree update_mu(vector<double>residuals,
   for(int i = 0;i<number_nodes;i++){
     sum_residuals = 0;
     for(int j = 0;j<terminal_nodes[i].obs.size();j++){
-      sum_residuals+=residuals[terminal_nodes[i].obs[j]];
+      sum_residuals+=residuals.coeff(terminal_nodes[i].obs[j]);
     }
     curr_tree.list_node[terminal_nodes[i].index].mu = R::rnorm( ((tau)/(terminal_nodes[i].obs.size()*tau+tau_mu))*sum_residuals,sqrt(1/((terminal_nodes[i].obs.size()*tau+tau_mu))) );
   }
@@ -324,26 +328,26 @@ Tree update_mu(vector<double>residuals,
   return curr_tree;
 }
 
-double update_tau(vector<double> y,
-                  vector<double> y_hat,
+// [[Rcpp::depends(RcppEigen)]]
+double update_tau(VectorXd y,
+                  VectorXd y_hat,
                   double a_tau,
                   double d_tau){
 
   int n = y.size();
   double sum_sq_res=0;
-  for(int i=0;i<n;i++){
-    sum_sq_res+=(y[i]-y_hat[i])*(y[i]-y_hat[i]);
-  }
+  sum_sq_res = ((y-y_hat)*(y-y_hat)).sum();
   return R::rgamma((0.5*n+a_tau),1/(0.5*sum_sq_res+d_tau));
 }
 
-vector<double> get_prediction_tree(Tree curr_tree,
+// [[Rcpp::depends(RcppEigen)]]
+VectorXd get_prediction_tree(Tree curr_tree,
                              MatrixXd x,
                              bool is_train){
 
   // Creating the prediction vector
   int n(x.rows());
-  vector<double> prediction(n);
+  VectorXd prediction(n);
 
   // Getting terminal nodes
   vector<node> terminal_nodes = curr_tree.getTerminals();
@@ -403,6 +407,7 @@ vector<double> get_prediction_tree(Tree curr_tree,
   return prediction;
 }
 
+// [[Rcpp::depends(RcppEigen)]]
 double tree_log_prior(Tree curr_tree,
                   double alpha,
                   double beta) {
@@ -420,9 +425,29 @@ double tree_log_prior(Tree curr_tree,
   return log_tree_p;
 }
 
-// //[[Rcpp::export]]
+// Get the log transition probability
+// [[Rcpp::depends(RcppEigen)]]
+double log_transition_prob(Tree curr_tree,
+                           Tree new_tree,
+                           double verb){
+
+  // Getting the probability
+  double log_prob = 0;
+
+  // In case of Grow: (Prob from Grew to Current)/(Current to Grow)
+  if(verb < 0.3){
+    log_prob = log(0.3/new_tree.n_nog())-log(0.3/new_tree.n_terminal());
+  } else if (verb < 0.6) { // In case of Prune: (Prob from the Pruned to the current)/(Prob to the current to the prune)
+    log_prob = log(0.3/new_tree.n_terminal())-log(0.3/new_tree.n_nog());
+  }; // In case of change log_prob = 0; it's already the actual value
+
+  return log_prob;
+
+}
+
+//[[Rcpp::export]]
 MatrixXd bart(MatrixXd x,
-          vector<double> y,
+          VectorXd y,
           int n_tree,
           int n_mcmc,
           int n_burn,
@@ -431,11 +456,16 @@ MatrixXd bart(MatrixXd x,
           double a_tau, double d_tau, double tau_mu,
           double alpha, double beta){
 
+  // Declaring common variables
+  double verb;
+  double acceptance;
+  int post_counter = 0;
+
   // Getting the number of observations
   int n(x.rows());
 
   // Creating the variables
-  int post_size = (n_mcmc-n_burn);
+  int n_post = (n_mcmc-n_burn);
   MatrixXd y_hat_post;
 
   // Creating a vector of multiple trees
@@ -445,9 +475,15 @@ MatrixXd bart(MatrixXd x,
 
   // Creating a matrix of zeros of y_hat
   y_hat.Zero(n_tree,n);
+  y_hat_post.Zero(n_post,n);
 
   // Creating the partial residuals and partial predictions
-  vector<double> partial_pred(n),partial_residuals(n);
+  VectorXd partial_pred,partial_residuals;
+
+  // Initializing zero values
+  partial_pred.Zero(n);
+  partial_residuals.Zero(n);
+
 
   // Initializing the "n_trees"
   for(int i=0; i<n_tree;i++){
@@ -455,64 +491,97 @@ MatrixXd bart(MatrixXd x,
 
   }
 
-  // Initial values for partial pred and residuals
-  partial_residuals = y;
-
   // Creating loglikelhood objects
   double log_like_old,log_like_new;
 
-
   // Iterating over all MCMC samples
-  for(int i=0;i<n_mcmc;i++)
+  for(int i=0;i<n_mcmc;i++){
 
 
 
       // Iterating over the trees
       for(int t = 0; t<n_tree;t++){
 
-      // Create a function to sample a verb
-      new_tree
+        // Updating the residuals
+        partial_residuals = y - (partial_pred - get_prediction_tree(current_trees[t],x,true));
 
-      log_like_old = tree_loglikelihood(partial_residuals,
-                                        current_trees[t],
-                                        tau_mu,
-                                        tau) + tree_log_prior(current_trees[t],alpha,beta);
+        // Sampling a verb. In this case I will sample a double between 0 and 1
+        // Grow: 0-0.3
+        // Prune 0.3 - 0.6
+        // Change: 0.6 - 1.0
+        // Swap: Not in this current implementation
+        verb = R::runif(0,1);
 
+        // Proposing a new tree
+        if(verb<=0.3){
+          new_tree = grow(current_trees[t], x, n_min_size);
+        } else if ( verb <= 0.6){
+          new_tree = prune(current_trees[t]);
+        } else {
+          new_tree = change(current_trees[t],x,n_min_size);
+        }
+
+        // Calculating all log_likelihoods
+        log_like_old = tree_loglikelihood(partial_residuals,current_trees[t],tau,tau_mu) + tree_log_prior(current_trees[t],alpha,beta);
+
+        log_like_new = tree_loglikelihood(partial_residuals,new_tree,tau,tau_mu) + tree_log_prior(new_tree,alpha,beta);
+
+        acceptance = log_like_new-log_like_old+ log_transition_prob(current_trees[t],new_tree,verb);
+
+        // Testing if will acceptance or not
+        if( (acceptance > 0) || acceptance > R::rexp(1)){
+          current_trees[t] = new_tree;
+        }
+
+        // Generating new \mu values for the accepted (or not tree)
+        current_trees[t] = update_mu(partial_residuals,current_trees[t],tau,tau_mu);
+
+        partial_pred = partial_residuals + get_prediction_tree(current_trees[t],x,true);
 
       }
+
+      // Updating the posterior matrix
+      if(n_mcmc>n_burn){
+        y_hat_post.row(post_counter) = partial_pred;
+        post_counter++;
+      }
+
+      //Updating tau
+      tau = update_tau(y,partial_pred,a_tau,d_tau);
+  }
 
   return y_hat_post;
 }
 
 //[[Rcpp::export]]
 int initialize_test(MatrixXd x,MatrixXd x_new,
-                    vector<double> residuals,
+                    VectorXd residuals,
                     double tau, double tau_mu){
 
-  int n_obs(x.rows());
-  vector<int> vec;
-  for(int i = 0; i<3;i++){
-    vec[i] = i;
-  }
-
-  Tree tree1(n_obs);
-  node node1(1,vec,1,1,1,1,0.1,0.1);
-  //node1.DisplayNode();
-  Tree new_tree = grow(tree1,x,2);
-  // new_tree.DisplayNodes();
-  Tree new_tree_two = grow(new_tree,x,2);
-  // new_tree_two.DisplayNodes();
-  Tree change_tree_two = change(new_tree_two,x,2);
-  // change_tree_two.DisplayNodes();
-  // Tree new_three_tree = grow(new_tree_two,x,2);
-  // new_three_tree.DisplayNodes();
-  Tree update_mu_tree = update_mu(residuals,change_tree_two,tau,tau_mu);
-  vector<double> pred_vec  = get_prediction_tree(update_mu_tree,x_new,false);
-  // get_prediction_tree(change_tree_two,x,true);
-  cout << "Pred x: ";
-  for(int i = 0; i<pred_vec.size();i++){
-    cout  << pred_vec[i]<< " " ;
-  }
+  // int n_obs(x.rows());
+  // vector<int> vec;
+  // for(int i = 0; i<3;i++){
+  //   vec[i] = i;
+  // }
+  //
+  // Tree tree1(n_obs);
+  // node node1(1,vec,1,1,1,1,0.1,0.1);
+  // //node1.DisplayNode();
+  // Tree new_tree = grow(tree1,x,2);
+  // // new_tree.DisplayNodes();
+  // Tree new_tree_two = grow(new_tree,x,2);
+  // // new_tree_two.DisplayNodes();
+  // Tree change_tree_two = change(new_tree_two,x,2);
+  // // change_tree_two.DisplayNodes();
+  // // Tree new_three_tree = grow(new_tree_two,x,2);
+  // // new_three_tree.DisplayNodes();
+  // Tree update_mu_tree = update_mu(residuals,change_tree_two,tau,tau_mu);
+  // VectorXd pred_vec  = get_prediction_tree(update_mu_tree,x_new,false);
+  // // get_prediction_tree(change_tree_two,x,true);
+  // cout << "Pred x: ";
+  // for(int i = 0; i<pred_vec.size();i++){
+  //   cout  << pred_vec.coeff(i)<< " " ;
+  // }
 
   // cout << "Tree prior" << tree_log_prior(new_tree_two,0.95,2) << endl;
   // vector<int> p_index = new_tree_two.getParentTerminals();
