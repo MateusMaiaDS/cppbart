@@ -11,17 +11,15 @@ using namespace Rcpp;
 using namespace RcppEigen;
 using namespace std;
 
-using Eigen::Map;
-using Eigen::MatrixXd;
-using Eigen::VectorXd;
-using Eigen::ArrayXd;
-using Eigen::LLT;
-using Eigen::Lower;
-using Eigen::Upper;
+// [[Rcpp::depends(RcppEigen)]]
+// using Eigen::Map;
+// using Eigen::LLT;
+// using Eigen::Lower;
+// using Eigen::Upper;
 
 
 // Nan error checker
-void contain_nan(VectorXd vec){
+void contain_nan(Eigen::VectorXd vec){
 
   for(int i = 0; i<vec.size();i++){
     if(isnan(vec.coeff(i))==1){
@@ -31,7 +29,7 @@ void contain_nan(VectorXd vec){
 
 }
 
-void print_vector(VectorXd vector) {
+void print_vector(Eigen::VectorXd vector) {
 
   for(int k=0;k<vector.size();k++){
     cout << vector[k] << " ";
@@ -170,7 +168,7 @@ Tree prune(Tree curr_tree){
 // Change a tree
 // [[Rcpp::depends(RcppEigen)]]
 Tree change(Tree curr_tree,
-            MatrixXd x,
+            Eigen::MatrixXd x,
             int n_min_size){
 
   // Declaring important values and variables
@@ -270,7 +268,7 @@ Tree change(Tree curr_tree,
 
 // // Get the verbs
 // Tree swap(Tree curr_tree,
-//            MatrixXd x,
+//            Eigen::MatrixXd x,
 //            int n_min_size){
 //
 //   // Testing if there are at least enough terminal nodes
@@ -285,7 +283,7 @@ Tree change(Tree curr_tree,
 // }
 
 // [[Rcpp::depends(RcppEigen)]]
-double node_loglikelihood(VectorXd residuals,
+double node_loglikelihood(Eigen::VectorXd residuals,
                           node current_node,
                           double tau,
                           double tau_mu) {
@@ -304,7 +302,7 @@ double node_loglikelihood(VectorXd residuals,
 }
 
 // [[Rcpp::depends(RcppEigen)]]
-double tree_loglikelihood(VectorXd residuals,
+double tree_loglikelihood(Eigen::VectorXd residuals,
                           Tree curr_tree,
                           double tau,
                           double tau_mu
@@ -326,7 +324,7 @@ double tree_loglikelihood(VectorXd residuals,
 
 // Updating the \mu
 // [[Rcpp::depends(RcppEigen)]]
-Tree update_mu(VectorXd residuals,
+Tree update_mu(Eigen::VectorXd residuals,
                Tree curr_tree,
                double tau,
                double tau_mu){
@@ -349,8 +347,8 @@ Tree update_mu(VectorXd residuals,
 }
 
 // [[Rcpp::depends(RcppEigen)]]
-double update_tau(VectorXd y,
-                  VectorXd y_hat,
+double update_tau(Eigen::VectorXd y,
+                  Eigen::VectorXd y_hat,
                   double a_tau,
                   double d_tau){
 
@@ -363,13 +361,13 @@ double update_tau(VectorXd y,
 }
 
 // [[Rcpp::depends(RcppEigen)]]
-VectorXd get_prediction_tree(Tree curr_tree,
-                             MatrixXd x,
+Eigen::VectorXd get_prediction_tree(Tree curr_tree,
+                             Eigen::MatrixXd x,
                              bool is_train){
 
   // Creating the prediction vector
   int n(x.rows());
-  VectorXd prediction(n);
+  Eigen::VectorXd prediction(n);
   prediction.setZero(n);
   vector<int> curr_obs;
   vector<int> new_left_index, new_right_index;
@@ -474,8 +472,8 @@ double log_transition_prob(Tree curr_tree,
 
 
 //[[Rcpp::export]]
-MatrixXd bart(MatrixXd x,
-          VectorXd y,
+Eigen::MatrixXd bart(Eigen::MatrixXd x,
+          Eigen::VectorXd y,
           int n_tree,
           int n_mcmc,
           int n_burn,
@@ -487,14 +485,14 @@ MatrixXd bart(MatrixXd x,
   // Declaring common variables
   double verb;
   double acceptance;
-  int post_counter = 0, a_counter = 0;
+  int post_counter = 0;
 
   // Getting the number of observations
   int n(x.rows());
 
   // Creating the variables
   int n_post = (n_mcmc-n_burn);
-  MatrixXd y_hat_post;
+  Eigen::MatrixXd y_hat_post;
 
   // Creating a vector of multiple trees
   vector<Tree> current_trees;
@@ -504,7 +502,7 @@ MatrixXd bart(MatrixXd x,
   y_hat_post.setZero(n_post,n);
 
   // Creating the partial residuals and partial predictions
-  VectorXd partial_pred,partial_residuals;
+  Eigen::VectorXd partial_pred,partial_residuals;
 
   // Initializing zero values
   partial_pred.setZero(n);
@@ -581,15 +579,12 @@ MatrixXd bart(MatrixXd x,
       // tau = update_tau(y,partial_pred,a_tau,d_tau);
   }
 
-  // Cleaning some memory;
-  current_trees.clear();
-
   return y_hat_post;
 }
 
 //[[Rcpp::export]]
-int initialize_test(MatrixXd x,MatrixXd x_new,
-                    VectorXd residuals,
+int initialize_test(Eigen::MatrixXd x,Eigen::MatrixXd x_new,
+                    Eigen::VectorXd residuals,
                     double tau, double tau_mu){
 
   // int n_obs(x.rows());
@@ -610,7 +605,7 @@ int initialize_test(MatrixXd x,MatrixXd x_new,
   // // Tree new_three_tree = grow(new_tree_two,x,2);
   // // new_three_tree.DisplayNodes();
   // Tree update_mu_tree = update_mu(residuals,change_tree_two,tau,tau_mu);
-  // VectorXd pred_vec  = get_prediction_tree(update_mu_tree,x_new,false);
+  // Eigen::VectorXd pred_vec  = get_prediction_tree(update_mu_tree,x_new,false);
   // // get_prediction_tree(change_tree_two,x,true);
   // cout << "Pred x: ";
   // for(int i = 0; i<pred_vec.size();i++){

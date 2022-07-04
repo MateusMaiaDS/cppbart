@@ -11,15 +11,38 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// bart
+Eigen::MatrixXd bart(Eigen::MatrixXd x, Eigen::VectorXd y, int n_tree, int n_mcmc, int n_burn, int n_min_size, double tau, double mu, double a_tau, double d_tau, double tau_mu, double alpha, double beta);
+RcppExport SEXP _cppbart_bart(SEXP xSEXP, SEXP ySEXP, SEXP n_treeSEXP, SEXP n_mcmcSEXP, SEXP n_burnSEXP, SEXP n_min_sizeSEXP, SEXP tauSEXP, SEXP muSEXP, SEXP a_tauSEXP, SEXP d_tauSEXP, SEXP tau_muSEXP, SEXP alphaSEXP, SEXP betaSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type x(xSEXP);
+    Rcpp::traits::input_parameter< Eigen::VectorXd >::type y(ySEXP);
+    Rcpp::traits::input_parameter< int >::type n_tree(n_treeSEXP);
+    Rcpp::traits::input_parameter< int >::type n_mcmc(n_mcmcSEXP);
+    Rcpp::traits::input_parameter< int >::type n_burn(n_burnSEXP);
+    Rcpp::traits::input_parameter< int >::type n_min_size(n_min_sizeSEXP);
+    Rcpp::traits::input_parameter< double >::type tau(tauSEXP);
+    Rcpp::traits::input_parameter< double >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< double >::type a_tau(a_tauSEXP);
+    Rcpp::traits::input_parameter< double >::type d_tau(d_tauSEXP);
+    Rcpp::traits::input_parameter< double >::type tau_mu(tau_muSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
+    rcpp_result_gen = Rcpp::wrap(bart(x, y, n_tree, n_mcmc, n_burn, n_min_size, tau, mu, a_tau, d_tau, tau_mu, alpha, beta));
+    return rcpp_result_gen;
+END_RCPP
+}
 // initialize_test
-int initialize_test(MatrixXd x, MatrixXd x_new, VectorXd residuals, double tau, double tau_mu);
+int initialize_test(Eigen::MatrixXd x, Eigen::MatrixXd x_new, Eigen::VectorXd residuals, double tau, double tau_mu);
 RcppExport SEXP _cppbart_initialize_test(SEXP xSEXP, SEXP x_newSEXP, SEXP residualsSEXP, SEXP tauSEXP, SEXP tau_muSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< MatrixXd >::type x(xSEXP);
-    Rcpp::traits::input_parameter< MatrixXd >::type x_new(x_newSEXP);
-    Rcpp::traits::input_parameter< VectorXd >::type residuals(residualsSEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type x(xSEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type x_new(x_newSEXP);
+    Rcpp::traits::input_parameter< Eigen::VectorXd >::type residuals(residualsSEXP);
     Rcpp::traits::input_parameter< double >::type tau(tauSEXP);
     Rcpp::traits::input_parameter< double >::type tau_mu(tau_muSEXP);
     rcpp_result_gen = Rcpp::wrap(initialize_test(x, x_new, residuals, tau, tau_mu));
@@ -28,6 +51,7 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_cppbart_bart", (DL_FUNC) &_cppbart_bart, 13},
     {"_cppbart_initialize_test", (DL_FUNC) &_cppbart_initialize_test, 5},
     {NULL, NULL, 0}
 };
