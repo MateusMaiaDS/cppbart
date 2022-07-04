@@ -456,8 +456,6 @@ double log_transition_prob(Tree curr_tree,
 
   // Getting the probability
   double log_prob = 0;
-  cout << "Verb: " << verb << endl;
-  cout << "NOG: " << new_tree.n_nog() << endl;
   // In case of Grow: (Prob from Grew to Current)/(Current to Grow)
   if(verb < 0.3){
     log_prob = log(0.3/new_tree.n_nog())-log(0.3/curr_tree.n_terminal());
@@ -556,7 +554,6 @@ Eigen::MatrixXd bart(Eigen::MatrixXd x,
           log_transition_prob_obj = 0;
         } else {
           log_transition_prob_obj = log_transition_prob(current_trees[t],new_tree,verb);
-          cout << "Log transition prob" << log_transition_prob(current_trees[t],new_tree,verb)<< endl;
         }
 
         // Calculating all log_likelihoods
