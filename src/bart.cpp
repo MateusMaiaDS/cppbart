@@ -12,10 +12,10 @@ using namespace RcppEigen;
 using namespace std;
 
 // [[Rcpp::depends(RcppEigen)]]
-// using Eigen::Map;
-// using Eigen::LLT;
-// using Eigen::Lower;
-// using Eigen::Upper;
+using Eigen::Map;
+using Eigen::LLT;
+using Eigen::Lower;
+using Eigen::Upper;
 
 
 // Nan error checker
@@ -340,13 +340,13 @@ Tree update_mu(Eigen::VectorXd residuals,
     for(int j = 0;j<terminal_nodes[i].obs.size();j++){
       sum_residuals+=residuals.coeff(terminal_nodes[i].obs[j]);
     }
-    curr_tree.list_node[terminal_nodes[i].index].mu = R::rnorm( ((tau)/(terminal_nodes[i].obs.size()*tau+tau_mu))*sum_residuals,sqrt(1/((terminal_nodes[i].obs.size()*tau+tau_mu))) );
+    curr_tree.list_node[terminal_nodes[i].index].mu = R::rnorm( ((tau)/(terminal_nodes[i].obs.size()*tau+tau_mu))*sum_residuals,sqrt(1/(terminal_nodes[i].obs.size()*tau+tau_mu)) );
   }
 
   return curr_tree;
 }
 
-// [[Rcpp::depends(RcppEigen)]]
+//[[Rcpp::export]]
 double update_tau(Eigen::VectorXd y,
                   Eigen::VectorXd y_hat,
                   double a_tau,
@@ -356,7 +356,9 @@ double update_tau(Eigen::VectorXd y,
 
   int n = y.size();
   double sum_sq_res=0;
-  sum_sq_res = ((y-y_hat)*(y-y_hat)).sum();
+  for(int i=0;i<n; i++){
+      sum_sq_res += (y.coeff(i)-y_hat.coeff(i))*(y.coeff(i)-y_hat.coeff(i));
+  }
   return R::rgamma((0.5*n+a_tau),1/(0.5*sum_sq_res+d_tau));
 }
 
@@ -454,22 +456,18 @@ double log_transition_prob(Tree curr_tree,
 
   // Getting the probability
   double log_prob = 0;
-
+  cout << "Verb: " << verb << endl;
+  cout << "NOG: " << new_tree.n_nog() << endl;
   // In case of Grow: (Prob from Grew to Current)/(Current to Grow)
   if(verb < 0.3){
-    log_prob = log(0.3/new_tree.n_nog())-log(0.3/new_tree.n_terminal());
+    log_prob = log(0.3/new_tree.n_nog())-log(0.3/curr_tree.n_terminal());
   } else if (verb < 0.6) { // In case of Prune: (Prob from the Pruned to the current)/(Prob to the current to the prune)
-    log_prob = log(0.3/new_tree.n_terminal())-log(0.3/new_tree.n_nog());
+    log_prob = log(0.3/new_tree.n_terminal())-log(0.3/curr_tree.n_nog());
   }; // In case of change log_prob = 0; it's already the actual value
 
   return log_prob;
 
 }
-
-
-
-
-
 
 //[[Rcpp::export]]
 Eigen::MatrixXd bart(Eigen::MatrixXd x,
@@ -485,6 +483,7 @@ Eigen::MatrixXd bart(Eigen::MatrixXd x,
   // Declaring common variables
   double verb;
   double acceptance;
+  double log_transition_prob_obj;
   int post_counter = 0;
 
   // Getting the number of observations
@@ -538,6 +537,11 @@ Eigen::MatrixXd bart(Eigen::MatrixXd x,
         // Swap: Not in this current implementation
         verb = R::runif(0,1);
 
+        // Forcing the first trees to grow
+        if(current_trees[t].list_node.size()==1 || i<floor(0.2*n_mcmc)){
+          verb = 0.1;
+        }
+
         // Proposing a new tree
         if(verb<=0.3){
           new_tree = grow(current_trees[t], x, n_min_size);
@@ -547,18 +551,24 @@ Eigen::MatrixXd bart(Eigen::MatrixXd x,
           new_tree = change(current_trees[t],x,n_min_size);
         }
 
+        // No new tree is proposed (Jump log calculations)
+        if( (verb <=0.6) && (current_trees[t].list_node.size()==new_tree.list_node.size())){
+          log_transition_prob_obj = 0;
+        } else {
+          log_transition_prob_obj = log_transition_prob(current_trees[t],new_tree,verb);
+          cout << "Log transition prob" << log_transition_prob(current_trees[t],new_tree,verb)<< endl;
+        }
+
         // Calculating all log_likelihoods
         log_like_old = tree_loglikelihood(partial_residuals,current_trees[t],tau,tau_mu) + tree_log_prior(current_trees[t],alpha,beta);
 
         log_like_new = tree_loglikelihood(partial_residuals,new_tree,tau,tau_mu) + tree_log_prior(new_tree,alpha,beta);
 
-        acceptance = log_like_new-log_like_old + log_transition_prob(current_trees[t],new_tree,verb);
+        acceptance = log_like_new-log_like_old + log_transition_prob_obj;
 
         // Testing if will acceptance or not
         if( (acceptance > 0) || (acceptance > -R::rexp(1))){
-          // cout << a_counter << endl;
           current_trees[t] = new_tree;
-          // a_counter++;
         }
 
         // Generating new \mu values for the accepted (or not tree)
@@ -576,7 +586,7 @@ Eigen::MatrixXd bart(Eigen::MatrixXd x,
 
       //Updating tau
       // cout << update_tau(y,partial_pred,a_tau,d_tau) << endl;
-      // tau = update_tau(y,partial_pred,a_tau,d_tau);
+      tau = update_tau(y,partial_pred,a_tau,d_tau);
   }
 
   return y_hat_post;
