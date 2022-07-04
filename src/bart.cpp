@@ -14,10 +14,30 @@ using namespace std;
 using Eigen::Map;
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
+using Eigen::ArrayXd;
 using Eigen::LLT;
 using Eigen::Lower;
 using Eigen::Upper;
 
+
+// Nan error checker
+void contain_nan(VectorXd vec){
+
+  for(int i = 0; i<vec.size();i++){
+    if(isnan(vec.coeff(i))==1){
+      cout << "This vector contain nan" << endl;
+    }
+  }
+
+}
+
+void print_vector(VectorXd vector) {
+
+  for(int k=0;k<vector.size();k++){
+    cout << vector[k] << " ";
+  }
+  cout << endl;
+}
 
 // [[Rcpp::depends(RcppEigen)]]
 Tree grow(Tree curr_tree,
@@ -334,6 +354,8 @@ double update_tau(VectorXd y,
                   double a_tau,
                   double d_tau){
 
+  contain_nan(y_hat);
+
   int n = y.size();
   double sum_sq_res=0;
   sum_sq_res = ((y-y_hat)*(y-y_hat)).sum();
@@ -348,6 +370,9 @@ VectorXd get_prediction_tree(Tree curr_tree,
   // Creating the prediction vector
   int n(x.rows());
   VectorXd prediction(n);
+  prediction.setZero(n);
+  vector<int> curr_obs;
+  vector<int> new_left_index, new_right_index;
 
   // Getting terminal nodes
   vector<node> terminal_nodes = curr_tree.getTerminals();
@@ -358,16 +383,12 @@ VectorXd get_prediction_tree(Tree curr_tree,
       // Iterating to get the predictions for a training test
       for(int i = 0;i<n_terminals;i++){
         for(int j = 0; j<terminal_nodes[i].obs.size();j++){
-          prediction[terminal_nodes[i].obs[j]] = terminal_nodes[i].mu;
+          prediction(terminal_nodes[i].obs[j]) = terminal_nodes[i].mu;
         }
       }
-  }
-
-  else {
+  } else {
 
     curr_tree.list_node[0].obs = seq_along(n);
-    vector<int> curr_obs;
-    vector<int> new_left_index, new_right_index;
 
     for(int i = 0; i<curr_tree.list_node.size();i++){
       curr_obs = curr_tree.list_node[i].obs;
@@ -377,7 +398,7 @@ VectorXd get_prediction_tree(Tree curr_tree,
 
       if(curr_tree.list_node[i].isTerminal()==1){
         for(int j=0;j<curr_obs.size();j++){
-          prediction[curr_obs[j]] = curr_tree.list_node[i].mu;
+          prediction(curr_obs[j]) = curr_tree.list_node[i].mu;
         }
       } else {
 
@@ -404,6 +425,7 @@ VectorXd get_prediction_tree(Tree curr_tree,
 
   }
 
+  contain_nan(prediction);
   return prediction;
 }
 
@@ -416,7 +438,8 @@ double tree_log_prior(Tree curr_tree,
 
   for(int i=0;i<curr_tree.list_node.size();i++){
     if(curr_tree.list_node[i].isTerminal()==1){
-      log_tree_p += log(1-pow(alpha*(1+curr_tree.list_node[i].depth),-beta));
+      // cout << log(1-alpha/pow((1+curr_tree.list_node[i].depth),beta)) << endl;
+      log_tree_p += log(1-alpha/pow((1+curr_tree.list_node[i].depth),beta));
     } else {
       log_tree_p += log(alpha)-beta*log(1+curr_tree.list_node[i].depth);
     }
@@ -445,6 +468,11 @@ double log_transition_prob(Tree curr_tree,
 
 }
 
+
+
+
+
+
 //[[Rcpp::export]]
 MatrixXd bart(MatrixXd x,
           VectorXd y,
@@ -459,7 +487,7 @@ MatrixXd bart(MatrixXd x,
   // Declaring common variables
   double verb;
   double acceptance;
-  int post_counter = 0;
+  int post_counter = 0, a_counter = 0;
 
   // Getting the number of observations
   int n(x.rows());
@@ -470,20 +498,17 @@ MatrixXd bart(MatrixXd x,
 
   // Creating a vector of multiple trees
   vector<Tree> current_trees;
-  MatrixXd y_hat;
   Tree new_tree(n);
 
   // Creating a matrix of zeros of y_hat
-  y_hat.Zero(n_tree,n);
-  y_hat_post.Zero(n_post,n);
+  y_hat_post.setZero(n_post,n);
 
   // Creating the partial residuals and partial predictions
   VectorXd partial_pred,partial_residuals;
 
   // Initializing zero values
-  partial_pred.Zero(n);
-  partial_residuals.Zero(n);
-
+  partial_pred.setZero(n);
+  partial_residuals.setZero(n);
 
   // Initializing the "n_trees"
   for(int i=0; i<n_tree;i++){
@@ -501,6 +526,9 @@ MatrixXd bart(MatrixXd x,
 
       // Iterating over the trees
       for(int t = 0; t<n_tree;t++){
+
+        // cout << "Y:" << endl;
+        // print_vector(get_prediction_tree(current_trees[t],x,true));
 
         // Updating the residuals
         partial_residuals = y - (partial_pred - get_prediction_tree(current_trees[t],x,true));
@@ -526,17 +554,19 @@ MatrixXd bart(MatrixXd x,
 
         log_like_new = tree_loglikelihood(partial_residuals,new_tree,tau,tau_mu) + tree_log_prior(new_tree,alpha,beta);
 
-        acceptance = log_like_new-log_like_old+ log_transition_prob(current_trees[t],new_tree,verb);
+        acceptance = log_like_new-log_like_old + log_transition_prob(current_trees[t],new_tree,verb);
 
         // Testing if will acceptance or not
-        if( (acceptance > 0) || acceptance > R::rexp(1)){
+        if( (acceptance > 0) || (acceptance > -R::rexp(1))){
+          // cout << a_counter << endl;
           current_trees[t] = new_tree;
+          // a_counter++;
         }
 
         // Generating new \mu values for the accepted (or not tree)
         current_trees[t] = update_mu(partial_residuals,current_trees[t],tau,tau_mu);
 
-        partial_pred = partial_residuals + get_prediction_tree(current_trees[t],x,true);
+        partial_pred = y + get_prediction_tree(current_trees[t],x,true) - partial_residuals;
 
       }
 
@@ -547,8 +577,12 @@ MatrixXd bart(MatrixXd x,
       }
 
       //Updating tau
-      tau = update_tau(y,partial_pred,a_tau,d_tau);
+      // cout << update_tau(y,partial_pred,a_tau,d_tau) << endl;
+      // tau = update_tau(y,partial_pred,a_tau,d_tau);
   }
+
+  // Cleaning some memory;
+  current_trees.clear();
 
   return y_hat_post;
 }
@@ -592,3 +626,5 @@ int initialize_test(MatrixXd x,MatrixXd x_new,
   return 0;
 
 }
+
+
