@@ -9,7 +9,3 @@ bart <- function(x, y, n_tree, n_mcmc, n_burn, n_min_size, tau, mu, a_tau, d_tau
     .Call('_cppbart_bart', PACKAGE = 'cppbart', x, y, n_tree, n_mcmc, n_burn, n_min_size, tau, mu, a_tau, d_tau, tau_mu, alpha, beta)
 }
 
-initialize_test <- function(x, x_new, residuals, tau, tau_mu) {
-    .Call('_cppbart_initialize_test', PACKAGE = 'cppbart', x, x_new, residuals, tau, tau_mu)
-}
-

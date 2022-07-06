@@ -19,23 +19,17 @@ using Eigen::Upper;
 
 
 // Nan error checker
-void contain_nan(Eigen::VectorXd vec){
+// void contain_nan(Eigen::VectorXd vec){
+//
+//   for(int i = 0; i<vec.size();i++){
+//     if(isnan(vec.coeff(i))==1){
+//       cout << "This vector contain nan" << endl;
+//     }
+//   }
+//
+// }
 
-  for(int i = 0; i<vec.size();i++){
-    if(isnan(vec.coeff(i))==1){
-      cout << "This vector contain nan" << endl;
-    }
-  }
 
-}
-
-void print_vector(Eigen::VectorXd vector) {
-
-  for(int k=0;k<vector.size();k++){
-    cout << vector[k] << " ";
-  }
-  cout << endl;
-}
 
 // [[Rcpp::depends(RcppEigen)]]
 Tree grow(Tree curr_tree,
@@ -114,7 +108,7 @@ Tree grow(Tree curr_tree,
 
       bad_tree_counter++;
       // Avoid infinite loop
-      if(bad_tree_counter == 2){
+      if(bad_tree_counter == 5){
         bad_tree = false;
       }
     }
@@ -129,7 +123,7 @@ Tree grow(Tree curr_tree,
 
 // Prune a tree
 // [[Rcpp::depends(RcppEigen)]]
-void prune(Tree curr_tree){
+Tree prune(Tree curr_tree){
 
   // New list of nodes
   int n_nodes = curr_tree.list_node.size();
@@ -137,15 +131,17 @@ void prune(Tree curr_tree){
 
   // Can't prune a root
   if(curr_tree.list_node.size()==1){
-    // return curr_tree;
+   return curr_tree;
   }
 
   // Getting the parents of terminal nodes
   vector<node> parent_left_right;
   for(int i=0;i<n_nodes;i++){
-    if(curr_tree.list_node[i].isTerminal()==0){
-      if(curr_tree.list_node[curr_tree.list_node[i].left].isTerminal()==1 && curr_tree.list_node[curr_tree.list_node[i].right].isTerminal()==1){
+    if(!curr_tree.list_node[i].isTerminal()){
+      if(curr_tree.list_node[curr_tree.list_node[i].left].isTerminal()){
+        if(curr_tree.list_node[curr_tree.list_node[i].right].isTerminal()){
             parent_left_right.push_back(curr_tree.list_node[i]); // Adding the parent
+          }
       }
     }
   }
@@ -154,6 +150,7 @@ void prune(Tree curr_tree){
   // Getting the number of internal and the node to be pruned
   int n_parent = parent_left_right.size();
   int p_node = sample_int(n_parent);
+
 
   // Returning to be a terminal node
   int left_index = curr_tree.list_node[parent_left_right[p_node].index].left;
@@ -166,24 +163,33 @@ void prune(Tree curr_tree){
   new_nodes.clear();
 
 
-  cout << "# ========== # " << endl;
   // Adding new trees
-  cout << curr_tree.list_node.size() << endl;
 
   for(int k = 0;k<curr_tree.list_node.size();k++){
-    if((curr_tree.list_node[k].index != left_index)==1){
-      if((curr_tree.list_node[k].index != right_index)==1){
-          new_nodes.push_back(curr_tree.list_node[k]);
-        }
+    if((curr_tree.list_node[k].index != left_index) && (curr_tree.list_node[k].index != right_index)){
+
+
+          // Doing for trees greater than left index
+          if(curr_tree.list_node[k].index>left_index){ /// COULD ALSO USE IF curr_tree.list_node[k].depth >depth_prune_node
+             curr_tree.list_node[k].index = curr_tree.list_node[k].index-2;
+          }
+          // Checking if the left index is greater than it should be
+          if(curr_tree.list_node[k].left>left_index){
+            curr_tree.list_node[k].left = curr_tree.list_node[k].left-2;
+          }
+          // Checking if the right index is greater than it should be
+          if(curr_tree.list_node[k].right>left_index){
+            curr_tree.list_node[k].right = curr_tree.list_node[k].right-2;
+          }
+
+      new_nodes.push_back(curr_tree.list_node[k]);
     }
   }
 
-  cout << new_nodes.size() << endl;
-  cout << "# ========== # " << endl;
 
-
+  // Updating the new nodes
   curr_tree.list_node = new_nodes;
-  // return curr_tree;
+  return curr_tree;
 }
 
 // Change a tree
@@ -373,7 +379,8 @@ double update_tau(Eigen::VectorXd y,
                   double a_tau,
                   double d_tau){
 
-  contain_nan(y_hat);
+  // Function used in the development of the package where I checked
+  // contain_nan(y_hat);
 
   int n = y.size();
   double sum_sq_res=0;
@@ -446,7 +453,6 @@ Eigen::VectorXd get_prediction_tree(Tree curr_tree,
 
   }
 
-  contain_nan(prediction);
   return prediction;
 }
 
@@ -459,7 +465,6 @@ double tree_log_prior(Tree curr_tree,
 
   for(int i=0;i<curr_tree.list_node.size();i++){
     if(curr_tree.list_node[i].isTerminal()==1){
-      // cout << log(1-alpha/pow((1+curr_tree.list_node[i].depth),beta)) << endl;
       log_tree_p += log(1-alpha/pow((1+curr_tree.list_node[i].depth),beta));
     } else {
       log_tree_p += log(alpha)-beta*log(1+curr_tree.list_node[i].depth);
@@ -489,7 +494,7 @@ double log_transition_prob(Tree curr_tree,
 }
 
 //[[Rcpp::export]]
-Eigen::MatrixXd bart(Eigen::MatrixXd x,
+List bart(Eigen::MatrixXd x,
           Eigen::VectorXd y,
           int n_tree,
           int n_mcmc,
@@ -511,10 +516,13 @@ Eigen::MatrixXd bart(Eigen::MatrixXd x,
   // Creating the variables
   int n_post = (n_mcmc-n_burn);
   Eigen::MatrixXd y_hat_post(n_post,n);
+  NumericVector tau_post;
+
 
   // Creating a vector of multiple trees
   vector<Tree> current_trees(n_tree,n);
   Tree new_tree(n);
+
 
   // Creating a matrix of zeros of y_hat
   y_hat_post.setZero(n_post,n);
@@ -526,11 +534,6 @@ Eigen::MatrixXd bart(Eigen::MatrixXd x,
   partial_pred.setZero(n);
   partial_residuals.setZero(n);
 
-  // Initializing the "n_trees"
-  // for(int i=0; i<n_tree;i++){
-  //   current_trees.push_back(Tree(n));
-  //
-  // }
 
   // Creating loglikelhood objects
   double log_like_old,log_like_new;
@@ -538,13 +541,9 @@ Eigen::MatrixXd bart(Eigen::MatrixXd x,
   // Iterating over all MCMC samples
   for(int i=0;i<n_mcmc;i++){
 
-
-
       // Iterating over the trees
       for(int t = 0; t<n_tree;t++){
 
-        // cout << "Y:" << endl;
-        // print_vector(get_prediction_tree(current_trees[t],x,true));
 
         // Updating the residuals
         partial_residuals = y - (partial_pred - get_prediction_tree(current_trees[t],x,true));
@@ -557,23 +556,19 @@ Eigen::MatrixXd bart(Eigen::MatrixXd x,
         verb = R::runif(0,1);
 
         // Forcing the first trees to grow
-        if(current_trees[t].list_node.size()==1 || i<floor(0.2*n_mcmc)){
+        if(current_trees[t].list_node.size()==1 ){
           verb = 0.1;
         }
 
         // Proposing a new tree
         if(verb<=0.3){
-          // if(current_trees[t].list_node.size()<=5){
               new_tree = grow(current_trees[t], x, n_min_size);
-            // }
         } else if ( verb <= 0.6){
-              // if(current_trees[t].list_node.size()>1){
-              // current_trees[t].DisplayNodes();
-                // new_tree = prune(current_trees[t]);
-                prune(current_trees[t]);
-              // }
+              if(current_trees[t].list_node.size()>1){
+                  new_tree = prune(current_trees[t]);
+                }
         } else {
-          new_tree = change(current_trees[t],x,n_min_size);
+               new_tree = change(current_trees[t],x,n_min_size);
         }
 
         // No new tree is proposed (Jump log calculations)
@@ -602,58 +597,18 @@ Eigen::MatrixXd bart(Eigen::MatrixXd x,
 
       }
 
+      tau = update_tau(y,partial_pred,a_tau,d_tau);
+
       // Updating the posterior matrix
-      if(n_mcmc>n_burn){
+      if(i>=n_burn){
         y_hat_post.row(post_counter) = partial_pred;
+        //Updating tau
+        tau_post.push_back(tau);
         post_counter++;
       }
 
-      //Updating tau
-      // cout << update_tau(y,partial_pred,a_tau,d_tau) << endl;
-      tau = update_tau(y,partial_pred,a_tau,d_tau);
   }
 
-  return y_hat_post;
+  return Rcpp::List::create(_["y_hat_post"] = y_hat_post,_["tau_post"] = tau_post);
 }
-
-//[[Rcpp::export]]
-int initialize_test(Eigen::MatrixXd x,Eigen::MatrixXd x_new,
-                    Eigen::VectorXd residuals,
-                    double tau, double tau_mu){
-
-  int n_obs(x.rows());
-  // vector<int> vec;
-  // for(int i = 0; i<3;i++){
-  //   vec[i] = i;
-  // }
-  //
-  Tree tree1(n_obs);
-  // node node1(1,vec,1,1,1,1,0.1,0.1);
-  // //node1.DisplayNode();
-  Tree new_tree = grow(tree1,x,2);
-  // // new_tree.DisplayNodes();
-  Tree new_tree_two = grow(new_tree,x,2);
-  new_tree_two.DisplayNodes();
-  // Tree change_tree_two = prune(new_tree_two);
-  // change_tree_two.DisplayNodes();
-  // // Tree new_three_tree = grow(new_tree_two,x,2);
-  // // new_three_tree.DisplayNodes();
-  // Tree update_mu_tree = update_mu(residuals,change_tree_two,tau,tau_mu);
-  // Eigen::VectorXd pred_vec  = get_prediction_tree(update_mu_tree,x_new,false);
-  // // get_prediction_tree(change_tree_two,x,true);
-  // cout << "Pred x: ";
-  // for(int i = 0; i<pred_vec.size();i++){
-  //   cout  << pred_vec.coeff(i)<< " " ;
-  // }
-
-  // cout << "Tree prior" << tree_log_prior(new_tree_two,0.95,2) << endl;
-  // vector<int> p_index = new_tree_two.getParentTerminals();
-
-  // Tree prune_tree = prune(new_three_tree);
-  // prune_tree.DisplayNodes();
-
-  return 0;
-
-}
-
 
