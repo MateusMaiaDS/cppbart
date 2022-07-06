@@ -127,7 +127,7 @@ Tree prune(Tree curr_tree){
 
   // New list of nodes
   int n_nodes = curr_tree.list_node.size();
-  vector<node> new_nodes = curr_tree.list_node;
+  vector<node> new_nodes;
 
   // Can't prune a root
   if(curr_tree.list_node.size()==1){
@@ -158,9 +158,6 @@ Tree prune(Tree curr_tree){
   curr_tree.list_node[parent_left_right[p_node].index].left=-1;
   curr_tree.list_node[parent_left_right[p_node].index].right=-1;
 
-
-  // Creating the new nodes aux
-  new_nodes.clear();
 
 
   // Adding new trees
@@ -597,7 +594,9 @@ List bart(Eigen::MatrixXd x,
 
       }
 
+      // Addubg the tau
       tau = update_tau(y,partial_pred,a_tau,d_tau);
+
 
       // Updating the posterior matrix
       if(i>=n_burn){
