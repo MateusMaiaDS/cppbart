@@ -510,6 +510,12 @@ List bart(Eigen::MatrixXd x,
   // Getting the number of observations
   int n(x.rows());
 
+  VectorXd sin_aux(n);
+
+  for(int i=0;i<n;i++){
+    sin_aux[i] = sin(x.coeff(i,0));
+  }
+
   // Creating the variables
   int n_post = (n_mcmc-n_burn);
   Eigen::MatrixXd y_hat_post(n_post,n);
@@ -595,7 +601,10 @@ List bart(Eigen::MatrixXd x,
       }
 
       // Addubg the tau
-      tau = update_tau(y,partial_pred,a_tau,d_tau);
+      // tau = 100;
+
+      tau = update_tau(y,sin_aux,a_tau,d_tau);
+
 
 
       // Updating the posterior matrix

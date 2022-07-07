@@ -29,7 +29,7 @@ r_bart <- function(x,
     y_scale <- normalize_bart(y = y)
 
     # Calculating \tau_{\mu} based on the scale of y
-    tau_mu <- (4 * n_tree * K_bart^2)
+    tau_mu <- (4 * n_tree * (K_bart^2))
 
     # Getting the optimal tau values
     d_tau <- rate_tau(x = x,
@@ -43,7 +43,7 @@ r_bart <- function(x,
     y_scale <- y
 
     # Calculating \tau_{\mu} based on the scale of y
-    tau_mu <- (4 * n_tree * K_bart^2)
+    tau_mu <- (4 * n_tree * (K_bart^2))
 
     # Getting the optimal tau values
     d_tau <- rate_tau(x = x,
@@ -70,6 +70,7 @@ r_bart <- function(x,
                                             a = a_min, b = b_max)
     bart_obj$tau_post <- bart_obj$tau_post/((b_max-a_min)^2)
   }
+
 
 
   return(bart_obj)
@@ -114,7 +115,7 @@ zero_tau_prob <- function(x, naive_tau_value, prob, shape) {
   # Find the zero to the function P(tau < tau_ols) = 0.1, for a defined
   return(stats::pgamma(naive_tau_value,
                        shape = shape,
-                       rate = x) - (1 - prob))
+                       scale = x) - (1 - prob))
 }
 
 # Return rate parameter from the tau prior
