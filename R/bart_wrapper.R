@@ -77,12 +77,12 @@ r_bart <- function(x,
 }
 
 
-zero_tau_prob_squared <- function(rate, naive_tau_value, prob, shape) {
+zero_tau_prob_squared <- function(x, naive_tau_value, prob, shape) {
 
   # Find the zero to the function P(tau < tau_ols) = 0.1, for a defined
   return((stats::pgamma(naive_tau_value,
                         shape = shape,
-                        rate = rate) - (1 - prob))^2)
+                        scale = x) - (1 - prob))^2)
 }
 
 # Naive tau_estimation
