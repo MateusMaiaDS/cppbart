@@ -15,10 +15,12 @@ int sample_int(int n){
 }
 
 // Sample an uniform value from a double vector
-double sample_double(VectorXd vec){
+double sample_double(VectorXd vec, int n_min_size){
 
   // Getting the range of the vector
-  return R::runif(vec.minCoeff(),vec.maxCoeff());
+  std::sort(vec.data(),vec.data()+vec.size() );
+  return R::runif(vec[(n_min_size-1)],vec[(vec.size()-(n_min_size+1))]);
+
 }
 
 

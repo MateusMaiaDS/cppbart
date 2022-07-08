@@ -11,23 +11,9 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
-// update_tau
-double update_tau(Eigen::VectorXd y, Eigen::VectorXd y_hat, double a_tau, double d_tau);
-RcppExport SEXP _cppbart_update_tau(SEXP ySEXP, SEXP y_hatSEXP, SEXP a_tauSEXP, SEXP d_tauSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Eigen::VectorXd >::type y(ySEXP);
-    Rcpp::traits::input_parameter< Eigen::VectorXd >::type y_hat(y_hatSEXP);
-    Rcpp::traits::input_parameter< double >::type a_tau(a_tauSEXP);
-    Rcpp::traits::input_parameter< double >::type d_tau(d_tauSEXP);
-    rcpp_result_gen = Rcpp::wrap(update_tau(y, y_hat, a_tau, d_tau));
-    return rcpp_result_gen;
-END_RCPP
-}
 // bart
-List bart(Eigen::MatrixXd x, Eigen::VectorXd y, int n_tree, int n_mcmc, int n_burn, int n_min_size, double tau, double mu, double a_tau, double d_tau, double tau_mu, double alpha, double beta);
-RcppExport SEXP _cppbart_bart(SEXP xSEXP, SEXP ySEXP, SEXP n_treeSEXP, SEXP n_mcmcSEXP, SEXP n_burnSEXP, SEXP n_min_sizeSEXP, SEXP tauSEXP, SEXP muSEXP, SEXP a_tauSEXP, SEXP d_tauSEXP, SEXP tau_muSEXP, SEXP alphaSEXP, SEXP betaSEXP) {
+List bart(Eigen::MatrixXd x, Eigen::VectorXd y, int n_tree, int n_mcmc, int n_burn, int n_min_size, double tau, double mu, double tau_mu, double naive_sigma, double alpha, double beta);
+RcppExport SEXP _cppbart_bart(SEXP xSEXP, SEXP ySEXP, SEXP n_treeSEXP, SEXP n_mcmcSEXP, SEXP n_burnSEXP, SEXP n_min_sizeSEXP, SEXP tauSEXP, SEXP muSEXP, SEXP tau_muSEXP, SEXP naive_sigmaSEXP, SEXP alphaSEXP, SEXP betaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -39,19 +25,17 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type n_min_size(n_min_sizeSEXP);
     Rcpp::traits::input_parameter< double >::type tau(tauSEXP);
     Rcpp::traits::input_parameter< double >::type mu(muSEXP);
-    Rcpp::traits::input_parameter< double >::type a_tau(a_tauSEXP);
-    Rcpp::traits::input_parameter< double >::type d_tau(d_tauSEXP);
     Rcpp::traits::input_parameter< double >::type tau_mu(tau_muSEXP);
+    Rcpp::traits::input_parameter< double >::type naive_sigma(naive_sigmaSEXP);
     Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
     Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
-    rcpp_result_gen = Rcpp::wrap(bart(x, y, n_tree, n_mcmc, n_burn, n_min_size, tau, mu, a_tau, d_tau, tau_mu, alpha, beta));
+    rcpp_result_gen = Rcpp::wrap(bart(x, y, n_tree, n_mcmc, n_burn, n_min_size, tau, mu, tau_mu, naive_sigma, alpha, beta));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
-    {"_cppbart_update_tau", (DL_FUNC) &_cppbart_update_tau, 4},
-    {"_cppbart_bart", (DL_FUNC) &_cppbart_bart, 13},
+    {"_cppbart_bart", (DL_FUNC) &_cppbart_bart, 12},
     {NULL, NULL, 0}
 };
 

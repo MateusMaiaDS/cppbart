@@ -1,6 +1,8 @@
+#define _USE_MATH_DEFINES
 #include <Rcpp.h>
 #include<RcppEigen.h>
 #include <vector>
+#include<cmath>
 #include <math.h>
 #include "aux_functions.h"
 #include "tree.h"
@@ -28,6 +30,7 @@ using Eigen::Upper;
 //   }
 //
 // }
+
 
 
 
@@ -67,7 +70,12 @@ Tree grow(Tree curr_tree,
     curr_obs = t_nodes[g_node].obs; // Current observations on that node
     n = t_nodes[g_node].obs.size();
 
-    g_rule = sample_double(x.col(g_var));
+    // Do not let split if is not possible to split
+    if( floor(n/2) <= n_min_size){
+      break;
+    }
+
+    g_rule = sample_double(x.col(g_var),n_min_size);
 
     // Iterating over the observations
     for(int i = 0; i<n; i++){
@@ -108,7 +116,7 @@ Tree grow(Tree curr_tree,
 
       bad_tree_counter++;
       // Avoid infinite loop
-      if(bad_tree_counter == 5){
+      if(bad_tree_counter==2){
         bad_tree = false;
       }
     }
@@ -233,7 +241,7 @@ Tree change(Tree curr_tree,
     // Selecting the node and var
     c_node = sample_int(n_parent);
     c_var = sample_int(p);
-    c_rule = sample_double(x.col(c_var));
+    c_rule = sample_double(x.col(c_var),n_min_size);
 
     // Number of observations that will be changed
     curr_obs = parent_left_right[c_node].obs;
@@ -370,22 +378,62 @@ Tree update_mu(Eigen::VectorXd residuals,
   return curr_tree;
 }
 
-//[[Rcpp::export]]
-double update_tau(Eigen::VectorXd y,
-                  Eigen::VectorXd y_hat,
-                  double a_tau,
-                  double d_tau){
+// Calculate the density of a half cauchy location 0 and sigma
+double dhcauchy(double x, double location, double sigma){
 
-  // Function used in the development of the package where I checked
-  // contain_nan(y_hat);
-
-  int n = y.size();
-  double sum_sq_res=0;
-  for(int i=0;i<n; i++){
-      sum_sq_res += (y.coeff(i)-y_hat.coeff(i))*(y.coeff(i)-y_hat.coeff(i));
+  if( x>location) {
+    return (1/M_PI_2*sigma)*(1/(1+((x-location)*(x-location))/(sigma*sigma)));
+  } else {
+    return 0.0;
   }
-  return R::rgamma((0.5*n+a_tau),1/(0.5*sum_sq_res+d_tau));
 }
+
+double update_tau(int n,
+                  VectorXd y,
+                  VectorXd y_hat,
+                  double naive_sigma,
+                  double curr_tau){
+
+      double curr_sigma, proposal_sigma, acceptance;
+
+      curr_sigma = 1/(curr_tau*curr_tau);
+
+      // Getting the sum squared of residuals
+      double sum_sq_res=0;
+        for(int i=0;i<n; i++){
+            sum_sq_res += (y[i]-y_hat[i])*(y[i]-y_hat[i]);
+      }
+
+      // Getting a proposal sigma
+      proposal_sigma = 1/sqrt(R::rgamma(0.5*n+1,1/0.5*sum_sq_res));
+
+      acceptance = exp(log(dhcauchy(proposal_sigma,0,naive_sigma))+3*log(proposal_sigma)-log(dhcauchy(curr_sigma,0,naive_sigma))-3*log(curr_sigma));
+
+      if(R::runif(0,1)<acceptance){
+        return 1/(proposal_sigma*proposal_sigma);
+      } else{
+        return curr_tau;
+      }
+}
+
+
+
+// //[[Rcpp::export]]
+// double update_tau_old(Eigen::VectorXd y,
+//                   Eigen::VectorXd y_hat,
+//                   double a_tau,
+//                   double d_tau){
+//
+//   // Function used in the development of the package where I checked
+//   // contain_nan(y_hat);
+//
+//   int n = y.size();
+//   double sum_sq_res=0;
+//   for(int i=0;i<n; i++){
+//       sum_sq_res += (y.coeff(i)-y_hat.coeff(i))*(y.coeff(i)-y_hat.coeff(i));
+//   }
+//   return R::rgamma((0.5*n+a_tau),1/(0.5*sum_sq_res+d_tau));
+// }
 
 // [[Rcpp::depends(RcppEigen)]]
 Eigen::VectorXd get_prediction_tree(Tree curr_tree,
@@ -498,7 +546,7 @@ List bart(Eigen::MatrixXd x,
           int n_burn,
           int n_min_size,
           double tau, double mu,
-          double a_tau, double d_tau, double tau_mu,
+          double tau_mu, double naive_sigma,
           double alpha, double beta){
 
   // Declaring common variables
@@ -600,11 +648,8 @@ List bart(Eigen::MatrixXd x,
 
       }
 
-      // Addubg the tau
-      // tau = 100;
-
-      tau = update_tau(y,sin_aux,a_tau,d_tau);
-
+      // Updating tau
+      tau = update_tau(n,y,partial_pred,naive_sigma,tau);
 
 
       // Updating the posterior matrix
@@ -619,4 +664,6 @@ List bart(Eigen::MatrixXd x,
 
   return Rcpp::List::create(_["y_hat_post"] = y_hat_post,_["tau_post"] = tau_post);
 }
+
+
 

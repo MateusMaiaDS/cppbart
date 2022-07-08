@@ -12,7 +12,6 @@ r_bart <- function(x,
                    tau, mu,
                    alpha, beta,
                    scale_boolean = TRUE,
-                   a_tau = 3, d_tau = 0.1, prob_tau = 0.9,
                    K_bart = 2){
 
 
@@ -31,11 +30,7 @@ r_bart <- function(x,
     # Calculating \tau_{\mu} based on the scale of y
     tau_mu <- (4 * n_tree * (K_bart^2))
 
-    # Getting the optimal tau values
-    d_tau <- rate_tau(x = x,
-                      y = y_scale,
-                      prob = prob_tau,
-                      shape = a_tau)
+    nsigma <- naive_sigma(x = x,y = y_scale)
 
   } else {
 
@@ -43,13 +38,11 @@ r_bart <- function(x,
     y_scale <- y
 
     # Calculating \tau_{\mu} based on the scale of y
+    # Need to change this value in case of non-scaling
     tau_mu <- (4 * n_tree * (K_bart^2))
 
-    # Getting the optimal tau values
-    d_tau <- rate_tau(x = x,
-                      y = y_scale,
-                      prob = prob_tau,
-                      shape = a_tau)
+    nsigma <- naive_sigma(x = x,y = y_scale)
+
 
   }
 
@@ -61,7 +54,8 @@ r_bart <- function(x,
                    n_burn = n_burn,
                    n_min_size = n_min_size,
                    tau = tau, mu = mu,
-                   a_tau = a_tau,d_tau = d_tau, tau_mu = tau_mu,
+                   tau_mu = tau_mu,
+                   naive_sigma = nsigma, # naive sigma value
                    alpha = alpha, beta = beta)
 
   # Returning to the normal scale
@@ -85,8 +79,8 @@ zero_tau_prob_squared <- function(x, naive_tau_value, prob, shape) {
                         scale = x) - (1 - prob))^2)
 }
 
-# Naive tau_estimation
-naive_tau <- function(x, y) {
+# Naive sigma_estimation
+naive_sigma <- function(x,y){
 
   # Getting the valus from n and p
   n <- length(y)
@@ -104,43 +98,14 @@ naive_tau <- function(x, y) {
   # Getting sigma
   sigma <- stats::sigma(lm_mod)
 
-  # Getting \tau back
-  tau <- sigma^(-2)
-  return(tau)
+
+  # sigma <- sqrt(sum((lm_mod$residuals)^2)/(n - p))
+  # sigma <- stats::sd(y)
+  sigma <- stats::sigma(lm_mod)
+
+  return(sigma)
 }
 
-# Functions to find the zero for tau
-zero_tau_prob <- function(x, naive_tau_value, prob, shape) {
-
-  # Find the zero to the function P(tau < tau_ols) = 0.1, for a defined
-  return(stats::pgamma(naive_tau_value,
-                       shape = shape,
-                       scale = x) - (1 - prob))
-}
-
-# Return rate parameter from the tau prior
-rate_tau <- function(x, # X value
-                     y, # Y value
-                     prob = 0.9,
-                     shape) {
-  # Find the tau_ols
-  tau_ols <- naive_tau(x = x,
-                       y = y)
-
-  # Getting the root
-  min_root <-  try(stats::uniroot(f = zero_tau_prob, interval = c(1e-2, 100),
-                                  naive_tau_value = tau_ols,
-                                  prob = prob, shape = shape)$root, silent = TRUE)
-
-  if(inherits(min_root, "try-error")) {
-    # Verifying the squared version
-    min_root <- stats::optim(par = stats::runif(1), fn = zero_tau_prob_squared,
-                             method = "L-BFGS-B", lower = 0,
-                             naive_tau_value = tau_ols,
-                             prob = prob, shape = shape)$par
-  }
-  return(min_root)
-}
 
 # Normalize BART function (Same way as theOdds code)
 normalize_bart <- function(y) {
