@@ -379,37 +379,55 @@ Tree update_mu(Eigen::VectorXd residuals,
 }
 
 // Calculate the density of a half cauchy location 0 and sigma
+//[[Rcpp::export]]
 double dhcauchy(double x, double location, double sigma){
 
   if( x>location) {
-    return (1/M_PI_2*sigma)*(1/(1+((x-location)*(x-location))/(sigma*sigma)));
+    return (1/(M_PI_2*sigma))*(1/(1+((x-location)*(x-location))/(sigma*sigma)));
   } else {
     return 0.0;
   }
 }
 
-double update_tau(int n,
-                  VectorXd y,
-                  VectorXd y_hat,
+double update_tau_old(Eigen::VectorXd y,
+                  Eigen::VectorXd y_hat,
+                  double a_tau,
+                  double d_tau){
+
+  // Function used in the development of the package where I checked
+  // contain_nan(y_hat);
+
+  int n = y.size();
+  double sum_sq_res=0;
+  for(int i=0;i<n; i++){
+      sum_sq_res += (y.coeff(i)-y_hat.coeff(i))*(y.coeff(i)-y_hat.coeff(i));
+  }
+  return R::rgamma((0.5*n+a_tau),1/(0.5*sum_sq_res+d_tau));
+}
+
+double update_tau(Eigen::VectorXd y,
+                  Eigen::VectorXd y_hat,
                   double naive_sigma,
                   double curr_tau){
 
-      double curr_sigma, proposal_sigma, acceptance;
+      int n=y.size();
+      double curr_sigma, proposal_tau,proposal_sigma, acceptance;
 
-      curr_sigma = 1/(curr_tau*curr_tau);
+      curr_sigma = 1/(sqrt(curr_tau));
 
       // Getting the sum squared of residuals
       double sum_sq_res=0;
         for(int i=0;i<n; i++){
-            sum_sq_res += (y[i]-y_hat[i])*(y[i]-y_hat[i]);
+            sum_sq_res += ((y.coeff(i)-y_hat.coeff(i)))*((y.coeff(i)-y_hat.coeff(i)));
       }
 
       // Getting a proposal sigma
-      proposal_sigma = 1/sqrt(R::rgamma(0.5*n+1,1/0.5*sum_sq_res));
+      proposal_tau = R::rgamma(0.5*n+1,1/(0.5*sum_sq_res));
+      proposal_sigma  = 1/(sqrt(proposal_tau));
 
       acceptance = exp(log(dhcauchy(proposal_sigma,0,naive_sigma))+3*log(proposal_sigma)-log(dhcauchy(curr_sigma,0,naive_sigma))-3*log(curr_sigma));
 
-      if(R::runif(0,1)<acceptance){
+      if(R::runif(0,1)<=acceptance){
         return 1/(proposal_sigma*proposal_sigma);
       } else{
         return curr_tau;
@@ -418,22 +436,7 @@ double update_tau(int n,
 
 
 
-// //[[Rcpp::export]]
-// double update_tau_old(Eigen::VectorXd y,
-//                   Eigen::VectorXd y_hat,
-//                   double a_tau,
-//                   double d_tau){
-//
-//   // Function used in the development of the package where I checked
-//   // contain_nan(y_hat);
-//
-//   int n = y.size();
-//   double sum_sq_res=0;
-//   for(int i=0;i<n; i++){
-//       sum_sq_res += (y.coeff(i)-y_hat.coeff(i))*(y.coeff(i)-y_hat.coeff(i));
-//   }
-//   return R::rgamma((0.5*n+a_tau),1/(0.5*sum_sq_res+d_tau));
-// }
+
 
 // [[Rcpp::depends(RcppEigen)]]
 Eigen::VectorXd get_prediction_tree(Tree curr_tree,
@@ -547,12 +550,14 @@ List bart(Eigen::MatrixXd x,
           int n_min_size,
           double tau, double mu,
           double tau_mu, double naive_sigma,
+          double a_tau, double d_tau,
           double alpha, double beta){
 
   // Declaring common variables
   double verb;
   double acceptance;
   double log_transition_prob_obj;
+  double past_tau;
   int post_counter = 0;
 
   // Getting the number of observations
@@ -649,8 +654,9 @@ List bart(Eigen::MatrixXd x,
       }
 
       // Updating tau
-      tau = update_tau(n,y,partial_pred,naive_sigma,tau);
-
+      past_tau = tau;
+      tau = update_tau(y,partial_pred,naive_sigma,past_tau);
+      // tau = update_tau_old(y,partial_pred,a_tau,d_tau);
 
       // Updating the posterior matrix
       if(i>=n_burn){
