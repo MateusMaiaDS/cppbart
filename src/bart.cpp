@@ -312,6 +312,7 @@ Tree swap(Tree curr_tree,
   int p(x.cols()),n;
 
 
+
   // Getting observations that are on the left and the ones that are in the right
   vector<int> new_left_index;
   vector<int> new_right_index;
