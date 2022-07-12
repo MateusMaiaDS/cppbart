@@ -298,21 +298,170 @@ Tree change(Tree curr_tree,
 
 };
 
-// // Get the verbs
-// Tree swap(Tree curr_tree,
-//            Eigen::MatrixXd x,
-//            int n_min_size){
-//
-//   // Testing if there are at least enough terminal nodes
-//   int n_int = curr_tree.n_internal();
-//
-//   // Returning if there are not enough internal nodes
-//   if(n_int<2){
-//     return curr_tree;
-//   }
-//
-//   return curr_tree;
-// }
+// Get the verbs
+Tree swap(Tree curr_tree,
+           Eigen::MatrixXd x,
+           int n_min_size){
+
+  // Testing if there are at least enough terminal nodes
+  int n_int = curr_tree.n_internal();
+  double branch_random;
+  int branch_counter;
+  // Declaring important values and variables
+  int n_nodes = curr_tree.list_node.size();
+  int p(x.cols()),n;
+
+
+  // Getting observations that are on the left and the ones that are in the right
+  vector<int> new_left_index;
+  vector<int> new_right_index;
+  vector<int> curr_obs; // Observations that belong to that terminal node
+
+  // Returning if there are not enough internal nodes
+  if(n_int<3){
+    return curr_tree;
+  }
+
+  // Getting the parents of terminal nodes (NOG)
+  vector<node> swap_branches, swap_branches_final;
+  for(int i=0;i<n_nodes;i++){
+    if(curr_tree.list_node[i].isTerminal()==0){
+      if(curr_tree.list_node[curr_tree.list_node[i].left].isTerminal()==1 || curr_tree.list_node[curr_tree.list_node[i].right].isTerminal()==1){
+        branch_counter = 0;
+        // Checking if the left child-branch is a parent of non-terminal nodes
+        if(curr_tree.list_node[curr_tree.list_node[curr_tree.list_node[i].left].left].isTerminal()==1 && curr_tree.list_node[curr_tree.list_node[curr_tree.list_node[i].left].right].isTerminal()==1){
+          swap_branches.push_back(curr_tree.list_node[i]);
+          branch_counter++;
+        } else if (curr_tree.list_node[curr_tree.list_node[curr_tree.list_node[i].right].left].isTerminal()==1 && curr_tree.list_node[curr_tree.list_node[curr_tree.list_node[i].right].right].isTerminal()==1){
+          swap_branches.push_back(curr_tree.list_node[i]);
+          branch_counter++;
+        }
+
+        // Getting all possible candidates to swap
+        if(branch_counter==2){
+          swap_branches.pop_back(); // Removing the branch node added twice
+        }
+      }
+    }
+  }
+
+  // Getting the possible number of parents to be swapped
+  int n_swap = swap_branches.size();
+  int swap_node = sample_int(n_swap);
+  int child_swap_node_index;
+  double leaf_bottom_var;
+  double leaf_bottom_rule;
+
+  double branch_bottom_var;
+  double branch_bottom_rule;
+
+  // Getting the values
+  branch_bottom_var = curr_tree.list_node[swap_branches[swap_node].index].var;
+  branch_bottom_rule = curr_tree.list_node[swap_branches[swap_node].index].var_split;
+
+
+  double child_swap_random = 0;
+
+  // Get the child-branch
+  if(curr_tree.list_node[swap_branches[swap_node].left].isTerminal()==1){
+    child_swap_node_index = curr_tree.list_node[swap_branches[swap_node].right].index;
+    leaf_bottom_var = curr_tree.list_node[swap_branches[swap_node].right].var;
+    leaf_bottom_rule = curr_tree.list_node[swap_branches[swap_node].right].var_split;
+
+
+  } else if(curr_tree.list_node[swap_branches[swap_node].right].isTerminal()==1){
+    child_swap_node_index = curr_tree.list_node[swap_branches[swap_node].left].index;
+    leaf_bottom_var = curr_tree.list_node[swap_branches[swap_node].left].var;
+    leaf_bottom_rule = curr_tree.list_node[swap_branches[swap_node].left].var_split;
+
+  } else {
+    child_swap_random = R::runif(0,1);
+    if(child_swap_random < 0.5) {
+      child_swap_node_index = curr_tree.list_node[swap_branches[swap_node].right].index;
+      leaf_bottom_var = curr_tree.list_node[swap_branches[swap_node].right].var;
+      leaf_bottom_rule = curr_tree.list_node[swap_branches[swap_node].right].var_split;
+
+    } else {
+      child_swap_node_index = curr_tree.list_node[swap_branches[swap_node].left].index;
+      leaf_bottom_var = curr_tree.list_node[swap_branches[swap_node].left].var;
+      leaf_bottom_rule = curr_tree.list_node[swap_branches[swap_node].left].var_split;
+
+    }
+  }
+
+  // Getting the values
+  for(int l = 0;l<n_nodes;l++){
+
+    if(curr_tree.list_node[l].index == swap_branches[swap_node].index){
+
+
+      curr_obs = curr_tree.list_node[l].obs;
+      n = curr_tree.list_node[l].obs.size();
+
+      for(int i=0;i<n;i++){
+        if(x.coeff(curr_obs[i],leaf_bottom_var)<=leaf_bottom_rule){
+          new_left_index.push_back(curr_obs[i]);
+        } else {
+          new_right_index.push_back(curr_obs[i]);
+        }
+      }
+
+      // Certifying that I will have only nodes with enough observations
+      if(new_right_index.size()>=n_min_size && new_left_index.size()>=n_min_size){
+        curr_tree.list_node[curr_tree.list_node[l].left].var = leaf_bottom_var;
+        curr_tree.list_node[curr_tree.list_node[l].left].var_split = leaf_bottom_rule;
+        curr_tree.list_node[curr_tree.list_node[l].right].var = leaf_bottom_var;
+        curr_tree.list_node[curr_tree.list_node[l].right].var_split = leaf_bottom_rule;
+
+        // Replacing the left and right index
+        curr_tree.list_node[curr_tree.list_node[l].left].obs = new_left_index;
+        curr_tree.list_node[curr_tree.list_node[l].right].obs = new_right_index;
+      } else {
+        return curr_tree; // Finish the VERB
+      }
+
+      // Skipping for the bottom leaves nodes
+    }
+
+    // Cleaning the auxiliary vectors
+    new_left_index.clear();
+    new_right_index.clear();
+    curr_obs.clear();
+
+    if(curr_tree.list_node[l].index==child_swap_node_index){
+
+      curr_obs = curr_tree.list_node[l].obs;
+      n = curr_tree.list_node[l].obs.size();
+
+      for(int i=0;i<n;i++){
+        if(x.coeff(curr_obs[i],branch_bottom_var)<=branch_bottom_rule){
+          new_left_index.push_back(curr_obs[i]);
+        } else {
+          new_right_index.push_back(curr_obs[i]);
+        }
+      }
+
+      // Certifying that I will have only nodes with enough observations
+      if(new_right_index.size()>=n_min_size && new_left_index.size()>=n_min_size){
+        curr_tree.list_node[curr_tree.list_node[l].left].var = branch_bottom_var;
+        curr_tree.list_node[curr_tree.list_node[l].left].var_split = branch_bottom_rule;
+        curr_tree.list_node[curr_tree.list_node[l].right].var = branch_bottom_var;
+        curr_tree.list_node[curr_tree.list_node[l].right].var_split = branch_bottom_rule;
+
+        // Replacing the left and right index
+        curr_tree.list_node[curr_tree.list_node[l].left].obs = new_left_index;
+        curr_tree.list_node[curr_tree.list_node[l].right].obs = new_right_index;
+      } else {
+        return curr_tree; // Finish the VERB
+      }
+
+    }
+
+    }
+
+  return curr_tree;
+}
+
 
 // [[Rcpp::depends(RcppEigen)]]
 double node_loglikelihood(Eigen::VectorXd residuals,
