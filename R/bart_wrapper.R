@@ -30,6 +30,9 @@ r_bart <- function(x,
     stop("Insert a valid NAMED matrix")
   }
 
+  if(!is.vector(y)) {
+    stop("Insert a valid y vector")
+  }
 
   # Scale values
   if(scale_boolean) {

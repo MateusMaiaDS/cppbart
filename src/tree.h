@@ -45,19 +45,19 @@ public:
 
   }
 
-  // void DisplayNode(){
-  //
-  //   cout << "Node Number: " << index << endl;
-  //   cout << "Decision Rule -> Var:  " << var << " & Rule: " << var_split << endl;
-  //   cout << "Left <-  " << left << " & Right -> " << right << endl;
-  //   if(true){
-  //     cout << "Observations: " ;
-  //     for(int i = 0; i<obs.size(); i++){
-  //       cout << obs[i] << " ";
-  //     }
-  //     cout << endl;
-  //   }
-  // }
+  void DisplayNode(){
+
+    cout << "Node Number: " << index << endl;
+    cout << "Decision Rule -> Var:  " << var << " & Rule: " << var_split << endl;
+    cout << "Left <-  " << left << " & Right -> " << right << endl;
+    if(true){
+      cout << "Observations: " ;
+      for(int i = 0; i<obs.size(); i++){
+        cout << obs[i] << " ";
+      }
+      cout << endl;
+    }
+  }
 
   bool isTerminal(){
     return ((left == -1) && (right == -1) );
@@ -90,12 +90,13 @@ class Tree{
     //   cout << "The tree has " << list_node.size() << " nodes" << endl;
     // }
 
-    // void DisplayNodes(){
-    //   for(int i = 0; i<list_node.size(); i++){
-    //     list_node[i].DisplayNode();
-    //   }
-    //   cout << "# ====== #" << endl;
-    // }
+    void DisplayNodes(){
+      for(int i = 0; i<list_node.size(); i++){
+        list_node[i].DisplayNode();
+      }
+      cout << "# ====== #" << endl;
+    }
+
 
     // Getting terminal nodes
     vector<node> getTerminals(){
