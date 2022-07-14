@@ -5,11 +5,7 @@ dhcauchy <- function(x, location, sigma) {
     .Call('_cppbart_dhcauchy', PACKAGE = 'cppbart', x, location, sigma)
 }
 
-bart <- function(x, y, n_tree, n_mcmc, n_burn, n_min_size, tau, mu, tau_mu, naive_sigma, a_tau, d_tau, alpha, beta) {
-    .Call('_cppbart_bart', PACKAGE = 'cppbart', x, y, n_tree, n_mcmc, n_burn, n_min_size, tau, mu, tau_mu, naive_sigma, a_tau, d_tau, alpha, beta)
-}
-
-initialize_test <- function(x, x_new, residuals, tau, tau_mu) {
-    .Call('_cppbart_initialize_test', PACKAGE = 'cppbart', x, x_new, residuals, tau, tau_mu)
+bart <- function(x_train, y, x_test, n_tree, n_mcmc, n_burn, n_min_size, tau, mu, tau_mu, naive_sigma, a_tau, d_tau, alpha, beta) {
+    .Call('_cppbart_bart', PACKAGE = 'cppbart', x_train, y, x_test, n_tree, n_mcmc, n_burn, n_min_size, tau, mu, tau_mu, naive_sigma, a_tau, d_tau, alpha, beta)
 }
 

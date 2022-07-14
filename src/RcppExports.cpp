@@ -25,13 +25,14 @@ BEGIN_RCPP
 END_RCPP
 }
 // bart
-List bart(Eigen::MatrixXd x, Eigen::VectorXd y, int n_tree, int n_mcmc, int n_burn, int n_min_size, double tau, double mu, double tau_mu, double naive_sigma, double a_tau, double d_tau, double alpha, double beta);
-RcppExport SEXP _cppbart_bart(SEXP xSEXP, SEXP ySEXP, SEXP n_treeSEXP, SEXP n_mcmcSEXP, SEXP n_burnSEXP, SEXP n_min_sizeSEXP, SEXP tauSEXP, SEXP muSEXP, SEXP tau_muSEXP, SEXP naive_sigmaSEXP, SEXP a_tauSEXP, SEXP d_tauSEXP, SEXP alphaSEXP, SEXP betaSEXP) {
+List bart(Eigen::MatrixXd x_train, Eigen::VectorXd y, Eigen::MatrixXd x_test, int n_tree, int n_mcmc, int n_burn, int n_min_size, double tau, double mu, double tau_mu, double naive_sigma, double a_tau, double d_tau, double alpha, double beta);
+RcppExport SEXP _cppbart_bart(SEXP x_trainSEXP, SEXP ySEXP, SEXP x_testSEXP, SEXP n_treeSEXP, SEXP n_mcmcSEXP, SEXP n_burnSEXP, SEXP n_min_sizeSEXP, SEXP tauSEXP, SEXP muSEXP, SEXP tau_muSEXP, SEXP naive_sigmaSEXP, SEXP a_tauSEXP, SEXP d_tauSEXP, SEXP alphaSEXP, SEXP betaSEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type x(xSEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type x_train(x_trainSEXP);
     Rcpp::traits::input_parameter< Eigen::VectorXd >::type y(ySEXP);
+    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type x_test(x_testSEXP);
     Rcpp::traits::input_parameter< int >::type n_tree(n_treeSEXP);
     Rcpp::traits::input_parameter< int >::type n_mcmc(n_mcmcSEXP);
     Rcpp::traits::input_parameter< int >::type n_burn(n_burnSEXP);
@@ -44,30 +45,14 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< double >::type d_tau(d_tauSEXP);
     Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
     Rcpp::traits::input_parameter< double >::type beta(betaSEXP);
-    rcpp_result_gen = Rcpp::wrap(bart(x, y, n_tree, n_mcmc, n_burn, n_min_size, tau, mu, tau_mu, naive_sigma, a_tau, d_tau, alpha, beta));
-    return rcpp_result_gen;
-END_RCPP
-}
-// initialize_test
-int initialize_test(Eigen::MatrixXd x, Eigen::MatrixXd x_new, Eigen::VectorXd residuals, double tau, double tau_mu);
-RcppExport SEXP _cppbart_initialize_test(SEXP xSEXP, SEXP x_newSEXP, SEXP residualsSEXP, SEXP tauSEXP, SEXP tau_muSEXP) {
-BEGIN_RCPP
-    Rcpp::RObject rcpp_result_gen;
-    Rcpp::RNGScope rcpp_rngScope_gen;
-    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type x(xSEXP);
-    Rcpp::traits::input_parameter< Eigen::MatrixXd >::type x_new(x_newSEXP);
-    Rcpp::traits::input_parameter< Eigen::VectorXd >::type residuals(residualsSEXP);
-    Rcpp::traits::input_parameter< double >::type tau(tauSEXP);
-    Rcpp::traits::input_parameter< double >::type tau_mu(tau_muSEXP);
-    rcpp_result_gen = Rcpp::wrap(initialize_test(x, x_new, residuals, tau, tau_mu));
+    rcpp_result_gen = Rcpp::wrap(bart(x_train, y, x_test, n_tree, n_mcmc, n_burn, n_min_size, tau, mu, tau_mu, naive_sigma, a_tau, d_tau, alpha, beta));
     return rcpp_result_gen;
 END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
     {"_cppbart_dhcauchy", (DL_FUNC) &_cppbart_dhcauchy, 3},
-    {"_cppbart_bart", (DL_FUNC) &_cppbart_bart, 14},
-    {"_cppbart_initialize_test", (DL_FUNC) &_cppbart_initialize_test, 5},
+    {"_cppbart_bart", (DL_FUNC) &_cppbart_bart, 15},
     {NULL, NULL, 0}
 };
 

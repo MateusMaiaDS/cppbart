@@ -16,7 +16,8 @@ class node{
   // Storing parameters
 public:
   int index; // Storing the node index
-  vector<int> obs; // Storing observations index that belong to that node
+  vector<int> obs_train; // Storing train observations index that belong to that node
+  vector<int> obs_test; // Storing test observations index that belong to that node
   int left; // Index of the left node
   int right; // Index of the right node
   int parent; // Index of the parent
@@ -30,12 +31,13 @@ public:
 public:
 
   // Getting the constructor
-  node(int index_n, vector<int> obs_numb,
+  node(int index_n, vector<int> obs_train_numb, vector<int> obs_test_numb,
        int left_i, int right_i, int depth_i, int var_i, double var_split_i,
        double mu_i){
 
     index = index_n;
-    obs = obs_numb;
+    obs_train = obs_train_numb;
+    obs_test = obs_test_numb;
     left = left_i;
     right = right_i;
     depth = depth_i;
@@ -50,13 +52,23 @@ public:
     cout << "Node Number: " << index << endl;
     cout << "Decision Rule -> Var:  " << var << " & Rule: " << var_split << endl;
     cout << "Left <-  " << left << " & Right -> " << right << endl;
+
     if(true){
-      cout << "Observations: " ;
-      for(int i = 0; i<obs.size(); i++){
-        cout << obs[i] << " ";
+      cout << "Observations train: " ;
+      for(int i = 0; i<obs_train.size(); i++){
+        cout << obs_train[i] << " ";
       }
       cout << endl;
     }
+
+    if(true){
+      cout << "Observations test: " ;
+      for(int i = 0; i<obs_test.size(); i++){
+        cout << obs_test[i] << " ";
+      }
+      cout << endl;
+    }
+
   }
 
   bool isTerminal(){
@@ -74,10 +86,11 @@ class Tree{
     vector<node> list_node;
 
     // Getting the vector of nodes
-    Tree(int n_obs){
+    Tree(int n_obs_train,int n_obs_test){
       // Creating a root node
       list_node.push_back(node(0,
-                               seq_along(n_obs),
+                               seq_along(n_obs_train),
+                               seq_along(n_obs_test),
                                -1, // left
                                -1, // right
                                0, //depth
