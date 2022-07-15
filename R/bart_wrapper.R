@@ -3,17 +3,16 @@
 
 # Calling the function in the R version
 #' @export
-r_bart <- function(x,
+r_bart <- function(x_train,
                    y,
+                   x_test,
                    n_tree,
                    n_mcmc,
                    n_burn,
                    n_min_size,
                    tau, mu,
                    alpha, beta,
-                   a_tau,d_tau,
                    scale_boolean = TRUE,
-                   prob_tau = 0.9,
                    K_bart = 2){
 
 
@@ -41,13 +40,7 @@ r_bart <- function(x,
 
     # Calculating \tau_{\mu} based on the scale of y
     tau_mu <- (4 * n_tree * (K_bart^2))
-
-
-    d_tau <- rate_tau(x = x,
-                      y = y_scale,
-                      prob = prob_tau,
-                      shape = a_tau)
-    nsigma <- naive_sigma(x = x,y = y_scale)
+    nsigma <- naive_sigma(x = x_train,y = y_scale)
 
   } else {
 
@@ -56,22 +49,17 @@ r_bart <- function(x,
 
     # Calculating \tau_{\mu} based on the scale of y
     # Need to change this value in case of non-scaling
-    tau_mu <- (4 * n_tree * (K_bart^2))
+    tau_mu <- (4 * n_tree * (K_bart^2))/((b_max-a_min)^2)
 
-
-    d_tau <- rate_tau(x = x,
-                      y = y_scale,
-                      prob = prob_tau,
-                      shape = a_tau)
-
-    nsigma <- naive_sigma(x = x,y = y_scale)
+    nsigma <- naive_sigma(x = x_train,y = y_scale)
 
 
   }
 
   # Getting the main function
-  bart_obj <- bart(x = x,
+  bart_obj <- bart(x_train = x_train,
                    y = y_scale,
+                   x_test = x_test,
                    n_tree = n_tree,
                    n_mcmc = n_mcmc,
                    n_burn = n_burn,
@@ -79,13 +67,16 @@ r_bart <- function(x,
                    tau = tau, mu = mu,
                    tau_mu = tau_mu,
                    naive_sigma = nsigma, # naive sigma value
-                   a_tau = a_tau,d_tau = d_tau,
                    alpha = alpha, beta = beta)
 
   # Returning to the normal scale
   if(scale_boolean){
-    bart_obj$y_hat_post <- unnormalize_bart(bart_obj$y_hat_post,
+    bart_obj$y_train_hat_post<- unnormalize_bart(bart_obj$y_train_hat_post,
                                             a = a_min, b = b_max)
+
+    bart_obj$y_test_hat_post<- unnormalize_bart(bart_obj$y_test_hat_post,
+                                                 a = a_min, b = b_max)
+
     bart_obj$tau_post <- bart_obj$tau_post/((b_max-a_min)^2)
   }
 

@@ -1019,7 +1019,6 @@ List bart(Eigen::MatrixXd x_train,
           int n_min_size,
           double tau, double mu,
           double tau_mu, double naive_sigma,
-          double a_tau, double d_tau,
           double alpha, double beta){
 
   // Declaring common variables
