@@ -1027,7 +1027,7 @@ List bart(Eigen::MatrixXd x_train,
   double log_transition_prob_obj;
   double past_tau;
   int post_counter = 0;
-  int id_t = 0 ,verb_node_index= -1; // Id_t: Boolean to verify if the same tree was generated
+  int id_t ,verb_node_index; // Id_t: Boolean to verify if the same tree was generated
                             // Verb_node_index: Explicit the node the was used;
 
   // Getting the number of observations
@@ -1077,6 +1077,8 @@ List bart(Eigen::MatrixXd x_train,
       // Iterating over the trees
       for(int t = 0; t<n_tree;t++){
 
+        // Initializing if store tree or not
+        id_t = 0;
         // Updating the prediction tree and prediction test
         get_prediction_tree(current_trees[t],x_train,x_test,prediction_train,prediction_test);
 
@@ -1108,27 +1110,32 @@ List bart(Eigen::MatrixXd x_train,
                // new_tree = swap(current_trees[t],x_train,x_test,n_min_size);
         }
 
-        // No new tree is proposed (Jump log calculations)
-        if( (verb <=0.6) && (current_trees[t].list_node.size()==new_tree.list_node.size())){
-          log_transition_prob_obj = 0;
-        } else {
-          log_transition_prob_obj = log_transition_prob(current_trees[t],new_tree,verb);
+        // Calculating or not the likelihood (1 is for case where the trees are the same)
+        if(id_t == 0){
 
-        }
+          // No new tree is proposed (Jump log calculations)
+          if( (verb <=0.6) && (current_trees[t].list_node.size()==new_tree.list_node.size())){
+            log_transition_prob_obj = 0;
+          } else {
+            log_transition_prob_obj = log_transition_prob(current_trees[t],new_tree,verb);
 
-        // Calculating all log_likelihoods
-        log_like_old = tree_loglikelihood(partial_residuals,current_trees[t],tau,tau_mu) + tree_log_prior(current_trees[t],alpha,beta);
-        // log_like_old =  tree_log_prior(current_trees[t],alpha,beta);
+          }
 
-        log_like_new = tree_loglikelihood(partial_residuals,new_tree,tau,tau_mu) + tree_log_prior(new_tree,alpha,beta);
-        // log_like_new =  tree_log_prior(new_tree,alpha,beta);
+          // Calculating all log_likelihoods
+          log_like_old = tree_loglikelihood(partial_residuals,current_trees[t],tau,tau_mu) + tree_log_prior(current_trees[t],alpha,beta);
+          // log_like_old =  tree_log_prior(current_trees[t],alpha,beta);
 
-        acceptance = log_like_new-log_like_old + log_transition_prob_obj;
+          log_like_new = tree_loglikelihood(partial_residuals,new_tree,tau,tau_mu) + tree_log_prior(new_tree,alpha,beta);
+          // log_like_new =  tree_log_prior(new_tree,alpha,beta);
 
-        // Testing if will acceptance or not
-        if( (acceptance > 0) || (acceptance > -R::rexp(1))){
-          current_trees[t] = new_tree;
-        }
+          acceptance = log_like_new-log_like_old + log_transition_prob_obj;
+
+          // Testing if will acceptance or not
+          if( (acceptance > 0) || (acceptance > -R::rexp(1))){
+            current_trees[t] = new_tree;
+          }
+
+        } // End the test likelihood calculating for same trees
 
         // Generating new \mu values for the accepted (or not tree)
         current_trees[t] = update_mu(partial_residuals,current_trees[t],tau,tau_mu);
