@@ -25,7 +25,7 @@ r_bart <- function(x_train,
 
 
   # Error of the matrix
-  if(is.null(colnames(x))) {
+  if(is.null(colnames(x_train)) || is.null(colnames(x_test)) ) {
     stop("Insert a valid NAMED matrix")
   }
 
