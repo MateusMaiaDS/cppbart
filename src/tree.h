@@ -27,7 +27,7 @@ public:
   double var_split; // Variable which the node was split
 
   double mu; // Mu parameter from the node
-
+  double loglike; // Loglikelihood of the residuals in that terminal node
 public:
 
   // Getting the constructor
@@ -44,7 +44,6 @@ public:
     var = var_i;
     var_split = var_split_i;
     mu = mu_i;
-
   }
 
   void DisplayNode(){
@@ -96,7 +95,7 @@ class Tree{
                                0, //depth
                                -1, // var
                                -1.1, // var_split
-                               0));
+                               0 )); // loglike
     }
 
     // void DisplayNodesNumber(){

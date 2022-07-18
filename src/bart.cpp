@@ -854,6 +854,26 @@ double tree_loglikelihood(Eigen::VectorXd residuals,
   return loglike_sum;
 }
 
+// [[Rcpp::depends(RcppEigen)]]
+double tree_loglikelihood_verb(Eigen::VectorXd residuals,
+                               Tree new_tree,
+                               Tree curr_tree,
+                               double verb,
+                               int verb_node_index,
+                               double tau,
+                               double tau_mu){
+   if(verb < 0.28){ // Grow prob
+      return (node_loglikelihood(residuals,new_tree.list_node[new_tree.list_node[verb_node_index].left],tau,tau_mu)+node_loglikelihood(residuals,new_tree.list_node[new_tree.list_node[verb_node_index].right],tau,tau_mu)) - node_loglikelihood(residuals,curr_tree.list_node[verb_node_index],tau,tau_mu);
+   } else if( verb <= 0.56){ // Prune prob
+     return node_loglikelihood(residuals, curr_tree.list_node[verb_node_index],tau,tau_mu)-(node_loglikelihood(residuals, curr_tree.list_node[curr_tree.list_node[verb_node_index].left],tau,tau_mu)+node_loglikelihood(residuals, curr_tree.list_node[curr_tree.list_node[verb_node_index].right],tau,tau_mu));
+   } else { // Change case
+     return (node_loglikelihood(residuals,new_tree.list_node[new_tree.list_node[verb_node_index].left],tau,tau_mu)+node_loglikelihood(residuals,new_tree.list_node[new_tree.list_node[verb_node_index].right],tau,tau_mu))-(node_loglikelihood(residuals, curr_tree.list_node[curr_tree.list_node[verb_node_index].left],tau,tau_mu)+node_loglikelihood(residuals, curr_tree.list_node[curr_tree.list_node[verb_node_index].right],tau,tau_mu));
+   }
+
+}
+
+
+
 // Updating the \mu
 // [[Rcpp::depends(RcppEigen)]]
 Tree update_mu(Eigen::VectorXd residuals,
@@ -973,18 +993,34 @@ void get_prediction_tree(Tree curr_tree,
 }
 
 // [[Rcpp::depends(RcppEigen)]]
-double tree_log_prior(Tree curr_tree,
-                  double alpha,
-                  double beta) {
+double tree_log_prior_verb(Tree new_tree,
+                          Tree curr_tree,
+                          double verb,
+                          double alpha,
+                          double beta) {
 
-  double log_tree_p = 0;
+  double log_tree_p = 0.0;
 
-  for(int i=0;i<curr_tree.list_node.size();i++){
-    if(curr_tree.list_node[i].isTerminal()==1){
-      log_tree_p += log(1-alpha/pow((1+curr_tree.list_node[i].depth),beta));
-    } else {
-      log_tree_p += log(alpha)-beta*log(1+curr_tree.list_node[i].depth);
+  if (verb<0.56){
+
+    // Adding for new tree
+    for(int i=0;i<curr_tree.list_node.size();i++){
+      if(curr_tree.list_node[i].isTerminal()==1){
+        log_tree_p -= log(1-alpha/pow((1+curr_tree.list_node[i].depth),beta));
+      } else {
+        log_tree_p -= log(alpha)-beta*log(1+curr_tree.list_node[i].depth);
+      }
     }
+
+    // Subtracting for the current tree
+    for(int i=0;i<new_tree.list_node.size();i++){
+      if(new_tree.list_node[i].isTerminal()==1){
+        log_tree_p -= log(1-alpha/pow((1+new_tree.list_node[i].depth),beta));
+      } else {
+        log_tree_p -= log(alpha)-beta*log(1+new_tree.list_node[i].depth);
+      }
+    }
+
   }
 
   return log_tree_p;
@@ -1065,8 +1101,6 @@ List bart(Eigen::MatrixXd x_train,
   prediction_train.setZero(n_train);
   prediction_test.setZero(n_test);
 
-  // Creating loglikelhood objects
-  double log_like_old,log_like_new;
 
   // Iterating over all MCMC samples
   for(int i=0;i<n_mcmc;i++){
@@ -1098,13 +1132,13 @@ List bart(Eigen::MatrixXd x_train,
         }
 
         // Proposing a new tree
-        if(verb<=0.25){
+        if(verb<=0.28){
               new_tree = grow(current_trees[t], x_train,x_test, n_min_size,&id_t,&verb_node_index);
-        } else if ( verb <= 0.5){
+        } else if ( verb <= 0.56){
               if(current_trees[t].list_node.size()>1){
                   new_tree = prune(current_trees[t],&id_t,&verb_node_index);
                 }
-        } else if (verb <= 0.9){
+        } else if (verb <= 1){
                new_tree = change(current_trees[t],x_train,x_test,n_min_size,&id_t,&verb_node_index);
         } else {
                // new_tree = swap(current_trees[t],x_train,x_test,n_min_size);
@@ -1121,14 +1155,7 @@ List bart(Eigen::MatrixXd x_train,
 
           }
 
-          // Calculating all log_likelihoods
-          log_like_old = tree_loglikelihood(partial_residuals,current_trees[t],tau,tau_mu) + tree_log_prior(current_trees[t],alpha,beta);
-          // log_like_old =  tree_log_prior(current_trees[t],alpha,beta);
-
-          log_like_new = tree_loglikelihood(partial_residuals,new_tree,tau,tau_mu) + tree_log_prior(new_tree,alpha,beta);
-          // log_like_new =  tree_log_prior(new_tree,alpha,beta);
-
-          acceptance = log_like_new-log_like_old + log_transition_prob_obj;
+          acceptance = tree_loglikelihood_verb(partial_residuals,new_tree,current_trees[t],verb,verb_node_index,tau, tau_mu) + tree_log_prior_verb(new_tree,current_trees[t],verb,alpha,beta)+ log_transition_prob_obj;
 
           // Testing if will acceptance or not
           if( (acceptance > 0) || (acceptance > -R::rexp(1))){
